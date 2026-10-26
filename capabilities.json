@@ -1,6 +1,6 @@
 {
   "package": "@petercjl/dmp-product-report",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "tool": "dmp-product-report",
   "entry": "bin/dmp-product-report.mjs",
   "commandContracts": {
