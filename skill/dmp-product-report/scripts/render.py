@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Independent standard-library renderer for the bundled report template."""
 import pathlib,json,html,tempfile,importlib.util,sys,re
+from urllib.parse import urlparse
 sys.dont_write_bytecode=True
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 def render(data_path,output):
@@ -74,7 +75,21 @@ def render(data_path,output):
   cells=[c['label'],c['start']+' 至 '+c['end'],'已核对' if c['metricsDateVerified'] else '未核实']+[names.get(c['modules'].get(k),'未执行') for k in ['scenes','keywords','crowdRanges','crowdTable']]
   coverage+='<tr>'+''.join('<td>'+esc(x)+'</td>' for x in cells)+'</tr>'
  coverage+='</tbody></table></div>'
- replacements={'__OVERVIEW__':overview,'__ITEM__':esc(d['itemId']),'__ASOF__':esc(d['plan']['asOf']),'__PERIOD__':esc(d['plan']['periods'][0]['end']),'__JUDGMENTS__':conclusions,'__PANELS__':panels,'__COVERAGE__':coverage,'__COUNT__':esc('共12个周期、60项来源查询：'+str(counts['returned'])+'项有返回，'+str(counts['empty'])+'项为空，'+str(counts['unavailable'])+'项查询失败。'),'__HASH__':esc(d['sourceHash'])}
+ product=d.get('product') or {'itemId':d['itemId'],'title':None,'shop':{}}
+ if product.get('itemId')!=d['itemId']:raise ValueError('PRODUCT_ID_MISMATCH')
+ def safe_link(value):
+  if not isinstance(value,str):return None
+  u=urlparse(value);host=u.hostname or ''
+  return value if u.scheme=='https' and not u.username and not u.password and (host=='taobao.com' or host.endswith('.taobao.com') or host=='tmall.com' or host.endswith('.tmall.com')) else None
+ picture=(product.get('image') or {}).get('dataUrl')
+ if picture and not re.fullmatch(r'data:image/(?:jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+',picture):raise ValueError('PRODUCT_IMAGE_INVALID')
+ image_html='<img src="'+esc(picture)+'" alt="商品主图">' if picture else '<span>暂无主图</span>'
+ shop=product.get('shop') or {};shop_name=shop.get('shopName') or '店铺名称未返回';shop_url=safe_link(shop.get('url'));item_url=safe_link(product.get('itemUrl'))
+ links=('<a href="'+esc(item_url)+'" target="_blank" rel="noopener noreferrer">查看商品 ↗</a>' if item_url else '')+('<a href="'+esc(shop_url)+'" target="_blank" rel="noopener noreferrer">进入店铺 ↗</a>' if shop_url else '')
+ note='商品资料来源：DMP · 采集时信息' if product.get('source') else '商品资料尚未获取'
+ if product.get('status')=='unavailable':note='DMP未返回该商品资料；商品ID与经营数据分别保留。'
+ product_html='<section class="product-card" aria-label="商品信息"><div class="product-image">'+image_html+'</div><div><h2 class="product-name">'+esc(product.get('title') or '商品名称未返回')+'</h2><div class="product-meta">商品 ID '+esc(d['itemId'])+' · '+esc(shop_name)+'</div><div class="product-links">'+links+'</div><div class="product-note">'+esc(note)+'</div></div></section>'
+ replacements={'__PRODUCT__':product_html,'__OVERVIEW__':overview,'__ITEM__':esc(d['itemId']),'__ASOF__':esc(d['plan']['asOf']),'__PERIOD__':esc(d['plan']['periods'][0]['end']),'__JUDGMENTS__':conclusions,'__PANELS__':panels,'__COVERAGE__':coverage,'__COUNT__':esc('共12个周期、60项来源查询：'+str(counts['returned'])+'项有返回，'+str(counts['empty'])+'项为空，'+str(counts['unavailable'])+'项查询失败。'),'__HASH__':esc(d['sourceHash'])}
  text=(ROOT/'assets/report.html').read_text(encoding='utf-8')
  for k,v in replacements.items():text=text.replace(k,v)
  if re.search(r'__[A-Z_]+__',text):raise ValueError('UNRESOLVED_TEMPLATE')

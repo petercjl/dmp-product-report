@@ -1,6 +1,6 @@
 {
   "package": "@petercjl/dmp-product-report",
-  "version": "0.1.0",
+  "version": "0.1.1-dev.0",
   "tool": "dmp-product-report",
   "entry": "bin/dmp-product-report.mjs",
   "commandContracts": {
@@ -444,6 +444,20 @@
         }
       },
       "sideEffects": "none"
+    },
+    "configure": {
+      "options": {
+        "--tbcli-entry": {
+          "type": "string"
+        },
+        "--json": {
+          "type": "boolean"
+        },
+        "--help": {
+          "type": "boolean"
+        }
+      },
+      "sideEffects": "local-write"
     }
   },
   "maintenanceContract": {
@@ -553,6 +567,7 @@
   ],
   "serviceDependencies": [
     "tbcli dmp snapshot version 1",
+    "tbcli dmp item-info version 1",
     "Python >=3.10"
   ],
   "compatibility": {
