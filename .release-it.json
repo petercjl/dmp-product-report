@@ -1,0 +1,6 @@
+{
+  "npm": { "allowSameVersion": true },
+  "hooks": {
+    "after:bump": "node src/sync-version.mjs && node src/verify-package.mjs"
+  }
+}
