@@ -81,14 +81,31 @@ def render(data_path,output):
   if not isinstance(value,str):return None
   u=urlparse(value);host=u.hostname or ''
   return value if u.scheme=='https' and not u.username and not u.password and (host=='taobao.com' or host.endswith('.taobao.com') or host=='tmall.com' or host.endswith('.tmall.com')) else None
- picture=(product.get('image') or {}).get('dataUrl')
- if picture and not re.fullmatch(r'data:image/(?:jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+',picture):raise ValueError('PRODUCT_IMAGE_INVALID')
- image_html='<img src="'+esc(picture)+'" alt="商品主图">' if picture else '<span>暂无主图</span>'
+ images=product.get('images') or ([product.get('image')] if product.get('image') else [])
+ thumbs='';first_picture=None
+ for i,image in enumerate(images[:5]):
+  picture=image.get('dataUrl')
+  if picture and not re.fullmatch(r'data:image/(?:jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+',picture):raise ValueError('PRODUCT_IMAGE_INVALID')
+  if picture:
+   if first_picture is None:first_picture=picture
+   thumbs+='<button type="button" class="product-thumbnail" aria-label="查看第'+str(i+1)+'张主图" aria-pressed="'+('true' if picture==first_picture else 'false')+'"><img src="'+esc(picture)+'" alt="第'+str(i+1)+'张主图"></button>'
+  else:thumbs+='<span class="product-thumbnail missing" title="主图未能嵌入">'+str(i+1)+'</span>'
+ image_html='<img class="product-hero" src="'+esc(first_picture)+'" alt="商品主图">' if first_picture else '<span>暂无主图</span>'
+ gallery='<div class="product-gallery"><div class="product-image">'+image_html+'</div><div class="product-thumbnails">'+thumbs+'</div></div>'
  shop=product.get('shop') or {};shop_name=shop.get('shopName') or '店铺名称未返回';shop_url=safe_link(shop.get('url'));item_url=safe_link(product.get('itemUrl'))
  links=('<a href="'+esc(item_url)+'" target="_blank" rel="noopener noreferrer">查看商品 ↗</a>' if item_url else '')+('<a href="'+esc(shop_url)+'" target="_blank" rel="noopener noreferrer">进入店铺 ↗</a>' if shop_url else '')
- note='商品资料来源：DMP · 采集时信息' if product.get('source') else '商品资料尚未获取'
- if product.get('status')=='unavailable':note='DMP未返回该商品资料；商品ID与经营数据分别保留。'
- product_html='<section class="product-card" aria-label="商品信息"><div class="product-image">'+image_html+'</div><div><h2 class="product-name">'+esc(product.get('title') or '商品名称未返回')+'</h2><div class="product-meta">商品 ID '+esc(d['itemId'])+' · '+esc(shop_name)+'</div><div class="product-links">'+links+'</div><div class="product-note">'+esc(note)+'</div></div></section>'
+ sold=(product.get('soldCount') or {}).get('text') or '未返回'
+ price=product.get('entryPrice') or {};price_text=price.get('text')
+ if price_text:
+  qualifier=price.get('qualifier') or '';price_text=('¥' if not re.search(r'[¥￥元]',str(price_text)) else '')+str(price_text)+(str(qualifier) if qualifier and str(qualifier) not in str(price_text) else '')
+ else:price_text='未返回'
+ reviews=(product.get('reviewCount') or {}).get('text') or '未返回'
+ stats='<dl class="product-stats"><div><dt>已售件数</dt><dd>'+esc(sold)+'</dd></div><div><dt>入口价格</dt><dd>'+esc(price_text)+'</dd><small>'+esc(price.get('label') or '')+'</small></div><div><dt>用户评价数</dt><dd>'+esc(reviews)+'</dd></div></dl>'
+ source=product.get('source') or {};buyer=source.get('capability')=='tbcli item summary'
+ note='商品资料来源：淘宝买家浏览器 · 页面展示口径 · '+str(len(product.get('mainImages') or images))+'/5张主图' if buyer else '商品资料来源：DMP历史记录' if source else '商品资料尚未获取'
+ if buyer:note+='；已售及评价数为页面口径，与DMP周期成交分别解释。'
+ if product.get('status')=='unavailable':note='商品资料未返回；商品ID与经营数据分别保留。'
+ product_html='<section class="product-card" aria-label="商品信息">'+gallery+'<div class="product-details"><h2 class="product-name">'+esc(product.get('title') or '商品名称未返回')+'</h2><div class="product-meta">商品 ID '+esc(d['itemId'])+' · '+esc(shop_name)+'</div>'+stats+'<div class="product-links">'+links+'</div><div class="product-note">'+esc(note)+'</div></div></section>'
  replacements={'__PRODUCT__':product_html,'__OVERVIEW__':overview,'__ITEM__':esc(d['itemId']),'__ASOF__':esc(d['plan']['asOf']),'__PERIOD__':esc(d['plan']['periods'][0]['end']),'__JUDGMENTS__':conclusions,'__PANELS__':panels,'__COVERAGE__':coverage,'__COUNT__':esc('共12个周期、60项来源查询：'+str(counts['returned'])+'项有返回，'+str(counts['empty'])+'项为空，'+str(counts['unavailable'])+'项查询失败。'),'__HASH__':esc(d['sourceHash'])}
  text=(ROOT/'assets/report.html').read_text(encoding='utf-8')
  for k,v in replacements.items():text=text.replace(k,v)

@@ -365,6 +365,10 @@
         },
         "--cdp-url": {
           "type": "string"
+        },
+        "--buyer-cdp-url": {
+          "type": "string",
+          "description": "Optional Taobao buyer CDP endpoint; kept separate from merchant --cdp-url"
         }
       },
       "sideEffects": "local-write",
@@ -392,6 +396,10 @@
         },
         "--cdp-url": {
           "type": "string"
+        },
+        "--buyer-cdp-url": {
+          "type": "string",
+          "description": "Optional Taobao buyer CDP endpoint; kept separate from merchant --cdp-url"
         }
       },
       "sideEffects": "local-write",
@@ -567,7 +575,7 @@
   ],
   "serviceDependencies": [
     "tbcli dmp snapshot version 1",
-    "tbcli dmp item-info version 1",
+    "tbcli item summary version 1",
     "Python >=3.10"
   ],
   "compatibility": {
@@ -648,5 +656,21 @@
   },
   "agentPackage": {
     "kind": "application-skill"
+  },
+  "productInformation": {
+    "capability": "tbcli item summary",
+    "version": 1,
+    "browserRole": "buyer",
+    "maxMainImages": 5,
+    "fields": [
+      "itemUrl",
+      "title",
+      "mainImages",
+      "shop",
+      "soldCount",
+      "entryPrice",
+      "reviewCount"
+    ],
+    "merchantStatisticsCapability": "tbcli dmp snapshot"
   }
 }

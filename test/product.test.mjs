@@ -27,7 +27,7 @@ test('final HTML displays an offline product card outside the views with escaped
  try{
   const plan=planPeriods('2026-10-26');
   const r=buildReport(plan,plan.periods.map(p=>({snapshotVersion:1,itemId:'123',anchorId:'456',period:{startDate:p.start,endDate:p.end},modules:{}})));
-  r.product={itemId:'123',title:'商品 <script>alert(1)</script>',itemUrl:'https://item.taobao.com/item.htm?id=123',shop:{shopName:'测试店铺',url:'https://shop456.taobao.com'},source:{capability:'tbcli dmp item-info'},image:{status:'embedded',dataUrl:'data:image/png;base64,aW1hZ2U='}};
+  r.product={itemId:'123',title:'商品 <script>alert(1)</script>',itemUrl:'https://item.taobao.com/item.htm?id=123',shop:{shopName:'测试店铺',url:'https://shop456.taobao.com'},source:{capability:'tbcli item summary'},mainImages:Array.from({length:5},(_,i)=>'https://img.alicdn.com/'+i+'.png'),images:Array.from({length:5},()=>({status:'embedded',dataUrl:'data:image/png;base64,aW1hZ2U='})),soldCount:{text:'已售 300+'},entryPrice:{text:'13.8',qualifier:'起',label:'秒杀价'},reviewCount:{text:'24'},image:{status:'embedded',dataUrl:'data:image/png;base64,aW1hZ2U='}};
   const a={label:'测试',conclusion:'测试资料不足。',evidence:['合成测试资料，无经营结论。']};
   const briefs=ms=>Object.fromEntries(ms.map(m=>[m.id,a]));
   const analysis={metricAnalyses:briefs(r.modules.metrics.metrics),crowdAnalyses:briefs(r.modules.crowd.metrics),promotionAnalyses:Object.fromEntries(r.modules.promotion.scenes.map(s=>[s.id,briefs(r.modules.promotion.metrics)])),businessInterpretations:{metrics:a,promotion:a,crowd:a},businessOverview:a};
@@ -35,6 +35,13 @@ test('final HTML displays an offline product card outside the views with escaped
   assert.equal(finalize({viewmodel:vm,analysis:ap,out}).readyForDelivery,true);
   const html=fs.readFileSync(out,'utf8');assert.ok(html.indexOf('class="product-card"')<html.indexOf('id="view-overview"'));
   assert.ok(html.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));assert.ok(!html.includes('<script>alert(1)</script>'));
-  assert.ok(html.includes('href="https://shop456.taobao.com"'));assert.ok(html.includes('src="data:image/png;base64,'));
+  assert.ok(html.includes('href="https://shop456.taobao.com"'));assert.equal((html.match(/class="product-thumbnail"/g)??[]).length,5);assert.ok(html.includes('¥13.8起'));assert.ok(html.includes('已售 300+'));assert.ok(html.includes('用户评价数'));assert.ok(html.includes('淘宝买家浏览器'));assert.ok(html.includes('src="data:image/png;base64,'));
  }finally{fs.rmSync(tmp,{recursive:true,force:true});}
+});
+
+test('buyer summary identity accepts exact target, embeds all five main images and retains qualified counts',async()=>{
+ const raw={schemaVersion:1,summaryVersion:1,command:'item summary',browserRole:'buyer',itemId:'123',status:'complete',source:{capturedAt:'2026-10-26T00:00:00Z'},product:{itemId:'123',mainImages:Array.from({length:5},(_,i)=>`https://img.alicdn.com/${i}.png`),soldCount:{text:'已售 300+',kind:'lower-bound'},entryPrice:{text:'13.8',qualifier:'起'},reviewCount:{text:'24'}}};
+ const product=productIdentity(raw,'123');assert.equal(product.source.capability,'tbcli item summary');assert.equal(product.soldCount.kind,'lower-bound');
+ const embedded=await embedProductImage(product,{fetchImpl:async()=>new Response(Buffer.from('image'),{headers:{'content-type':'image/png'}})});assert.equal(embedded.images.length,5);assert.ok(embedded.images.every(i=>i.status==='embedded'));
+ assert.throws(()=>productIdentity({...raw,browserRole:'merchant'},'123'),/SOURCE_ID/);assert.throws(()=>productIdentity({...raw,product:{itemId:'456'}},'123'),/PRODUCT_ID_MISMATCH/);
 });
