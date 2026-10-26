@@ -1,0 +1,2 @@
+import fs from 'node:fs';import path from 'node:path';import {fileURLToPath} from 'node:url';import {spawnSync} from 'node:child_process';
+const skill=path.dirname(path.dirname(fileURLToPath(import.meta.url))),owned=path.join(skill,'.runtime/bin/dmp-product-report.mjs'),source=path.resolve(skill,'../../bin/dmp-product-report.mjs'),entry=fs.existsSync(owned)?owned:source;if(!fs.existsSync(entry))throw Error('OWNED_RUNTIME_REQUIRED');const p=spawnSync(process.execPath,[entry,...process.argv.slice(2)],{stdio:'inherit'});process.exitCode=p.status??1;

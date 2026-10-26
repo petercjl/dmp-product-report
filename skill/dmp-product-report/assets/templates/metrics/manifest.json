@@ -1,0 +1,15 @@
+{
+  "pack_format": "commerce-ui-template-pack@1",
+  "id": "period-metric-dashboard",
+  "contract": "period-metric-dashboard@1.0",
+  "version": "0.3.0",
+  "title": "单图指标对照与趋势看板",
+  "description": "指标Tab切换单张图，支持四周期对比、自然周趋势以及两种时间维度在同一看板切换；保留环比与百分点变化。",
+  "files": {
+    "schema": "schema.json",
+    "template": "template.html",
+    "renderer": "renderer.py",
+    "validator": "validator.py",
+    "fixture": "fixture.json"
+  }
+}

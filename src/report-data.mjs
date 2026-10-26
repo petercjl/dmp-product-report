@@ -1,0 +1,62 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import {createHash} from 'node:crypto';
+export const shift=(day,n)=>new Date(Date.parse(day+'T00:00:00Z')+n*86400000).toISOString().slice(0,10);
+export function planPeriods(asOf=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())){
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(asOf)||shift(asOf,0)!==asOf)throw Error('INVALID_DATE');
+ const p=[{id:'near7',label:'近7天',mode:'comparison',start:shift(asOf,-7),end:shift(asOf,-1)},{id:'prior7',label:'前7天',mode:'comparison',start:shift(asOf,-14),end:shift(asOf,-8)},{id:'near30',label:'近30天',mode:'comparison',start:shift(asOf,-30),end:shift(asOf,-1)},{id:'prior30',label:'前30天',mode:'comparison',start:shift(asOf,-60),end:shift(asOf,-31)}];
+ const last=shift(asOf,-(new Date(asOf+'T00:00:00Z').getUTCDay()||7));
+ for(let i=0;i<8;i++)p.push({id:'w'+(i+1),label:'第'+(i+1)+'周',mode:'trend',start:shift(last,-55+7*i),end:shift(last,-49+7*i)});
+ return{asOf,timeZone:'Asia/Shanghai',periods:p};
+}
+const num=v=>v===null||v===undefined||v===''?null:Number.isFinite(Number(v))?Number(v):null;
+const part=s=>{const m=s.trim().match(/^(\d+(?:\.\d+)?)(万|千)?(%?)$/);if(!m)throw Error('UNSUPPORTED_RANGE');return +m[1]*(m[2]==='万'?1e4:m[2]==='千'?1e3:1)/(m[3]?100:1);};
+export function typed(raw){if(raw===null||raw===undefined)return{kind:'missing',raw:null};if(typeof raw==='number'&&Number.isFinite(raw)&&raw>=0)return{kind:'exact',raw,value:raw};if(typeof raw==='string'&&raw.includes('~')){const a=raw.split('~');if(a.length!==2)throw Error('INVALID_RANGE');const[lower,upper]=a.map(part);if(lower>upper)throw Error('INVALID_RANGE');return{kind:'range',raw,lower,upper};}throw Error('UNSUPPORTED_VALUE');}
+const md=[['orders','成交笔数',6986,'笔','integer'],['averageOrder','笔单价',6895,'元/笔','decimal'],['ipv','访问量',6813,'次','integer'],['paidClicks','营销推广点击量',8291,'次','integer'],['organicClicks','自然点击量',8290,'次','integer'],['conversion','支付转化率',6896,'%','percent'],['addToCart','加购率',6897,'%','percent']];
+const promo=[['impression','展现次数','次','number'],['click','点击次数','次','number'],['chargeRatio','消耗占比','%','percent'],['ctr','点击率','%','percent'],['cpc','点击成本','元/次','number'],['directDealAmount','直接成交额','元','number'],['directRoi','直接ROI','倍','number'],['charge','消耗金额','元','number']];
+const cd=[['people','人群数',7469,'人','number'],['orders','成交笔数',7468,'笔','number'],['conversion','支付转化率',7465,'%','percent'],['cartFavorite','收加率',7464,'%','percent']];
+const groups=[{id:'itemOld',label:'宝贝老客'},{id:'itemNewShopOld',label:'宝贝新客且店铺老客'},{id:'shopNewCategoryOld',label:'店铺新客且类目老客'},{id:'categoryNew',label:'类目新客'}];
+const vtext=v=>v===null?'未返回':Number(v).toLocaleString('zh-CN',{maximumFractionDigits:2});
+export const growth=(a,b)=>a===null||b===null?null:b===0?null:(a-b)/b*100;
+const percent=v=>v===null?'无法计算':(v>0?'+':'')+v.toFixed(2)+'%';
+export function buildReport(plan,snapshots){
+ if(plan.periods.length!==12||snapshots.length!==12)throw Error('TWELVE_PERIODS_REQUIRED');
+ const itemId=snapshots[0].itemId,anchorId=snapshots[0].anchorId,coverage=[],warnings=[],metricsByPeriod={},sceneMap=new Map(),sourceHash=createHash('sha256').update(JSON.stringify(snapshots)).digest('hex');
+ const rows=(s,name)=>Array.isArray(data(s,name))?data(s,name):[];
+ const data=(s,name)=>s.modules[name]?.response?.body?.info?.ok===true?s.modules[name].response.body.data:null;
+ for(let i=0;i<12;i++){
+  const s=snapshots[i],p=plan.periods[i];if(s.snapshotVersion!==1||s.itemId!==itemId||s.anchorId!==anchorId||s.period.startDate!==p.start||s.period.endDate!==p.end)throw Error('SNAPSHOT_ID_DATE_MISMATCH');
+  const d=data(s,'metrics7'),card=d?.INDEX_CARD,ids=card?.fields?.map(f=>String(f.id))??[],dates=String(d?.rangeDesc??'').match(/\d{4}-\d{2}-\d{2}/g)??[],matched=dates[0]===p.start&&(dates[1]??dates[0])===p.end;
+  if(new Set(ids).size!==ids.length||card&&card.fields.length!==card.values.length)throw Error('METRIC_SCHEMA_CHANGED');
+  metricsByPeriod[p.id]=Object.fromEntries(md.map(([id,,fid])=>[id,matched?num(card?.values[ids.indexOf(String(fid))]?.value):null]));const m=metricsByPeriod[p.id];m.sales=m.orders===null||m.averageOrder===null?null:m.orders*m.averageOrder;
+  for(const row of rows(s,'scenes'))sceneMap.set('s'+row.sceneId,{id:'s'+row.sceneId,label:row.sceneName});
+  const moduleStates=Object.fromEntries(Object.entries(s.modules).map(([k,v])=>[k,v.status]));
+  if(Array.isArray(data(s,'keywords')?.succItem)&&data(s,'keywords').succItem.length===0)moduleStates.keywords='empty';
+  for(const [name,status] of Object.entries(moduleStates))if(status==='unavailable')warnings.push(p.label+' '+name+'查询失败，其他来源单独采用。');
+  coverage.push({id:p.id,label:p.label,start:p.start,end:p.end,metricsDateVerified:matched,modules:moduleStates});
+  if(!matched)warnings.push(p.label+'经营汇总日期未核实，图表保留未知。');
+ }
+ const common={subject:'商品 ID '+itemId,sourceHash},operatingMetrics=[['sales','销售额',null,'元','decimal'],...md].map(([id,label,,unit,format])=>({id,label,unit,format,comparison:format==='percent'?'percentage_points':'relative',definition:id==='sales'?'销售额＝该周期完整精度笔单价 × 成交笔数，显示两位小数。':id==='ipv'?'所有渠道商品详情页访问次数。':id==='addToCart'?'平台加购率原值；与人群表收加率分别解释。':label+'：按该周期平台汇总值展示。',values:Object.fromEntries(plan.periods.filter(p=>p.mode==='comparison').map(p=>[p.id,metricsByPeriod[p.id][id]]))}));
+ const mapPeriod=p=>({id:p.id,label:p.label,start:p.start,end:p.end,days:Math.round((Date.parse(p.end)-Date.parse(p.start))/864e5)+1});
+ const metricsVM={contract:'period-metric-dashboard@1.0',mode:'combined',meta:{...common,title:'关键指标对比',asOf:plan.periods[0].end,periodNoun:'周',source:'DMP经营数据集156 · 四周期与8个完整自然周'},periods:plan.periods.slice(0,4).map(mapPeriod),comparisons:[{label:'7天',current:'near7',previous:'prior7'},{label:'30天',current:'near30',previous:'prior30'}],metrics:operatingMetrics,trend:{periods:plan.periods.slice(4).map(mapPeriod),metrics:operatingMetrics.map(m=>({...m,values:Object.fromEntries(plan.periods.slice(4).map(p=>[p.id,metricsByPeriod[p.id][m.id]]))}))}};
+ const scenes=[...sceneMap.values()];if(!scenes.length)scenes.push({id:'unavailable',label:'场景未返回'});
+ const promoPeriods=plan.periods.map((p,i)=>({...p,keywordCount:data(snapshots[i],'keywords')?.succItem?.length??0,values:Object.fromEntries(promo.map(([id])=>[id,Object.fromEntries(scenes.map(g=>[g.id,typed((rows(snapshots[i],'scenes')).find(r=>'s'+r.sceneId===g.id)?.[id]?.succItemValue??null)]))]))}));
+ const promotionVM={contract:'scene-period-dashboard@1.0',meta:{...common,title:'推广策略对比',source:'DMP打爆路径 · 推广场景与目标关键词'},scenes,metrics:promo.map(([id,label,unit,format])=>({id,label,unit,format,definition:id==='directDealAmount'?'推广直接归因成交额，独立于经营销售额。':id==='chargeRatio'?'接口返回场景消耗占比，不据此推断其他场景数据是否完整。':label+'按接口原值或原始区间展示；缺失保留未知。'})),periods:promoPeriods};
+ const crowdWarnings=[],crowdPeriods=plan.periods.map((p,i)=>{
+  const vals=Object.fromEntries(cd.map(([id])=>[id,Object.fromEntries([...groups,{id:'total'}].map(g=>[g.id,typed(null)]))])),table=data(snapshots[i],'crowdTable')?.TABLE,columns=table?.columns?.map(c=>c.cells[0].field.id)??[],pager=data(snapshots[i],'crowdTable')?.pager;
+  if(columns.length){if(table.rows.length!==table.values.length)throw Error('CROWD_SCHEMA_CHANGED');let count=0;for(let j=0;j<table.rows.length;j++){const r=table.rows[j],name=r.total?'total':r.cells[0].value,id=r.total?'total':groups.find(g=>g.label===name)?.id;if(!id)throw Error('CROWD_GROUP_CHANGED');if(!r.total)count++;for(const[mid,,fid,,format]of cd){const n=num(table.values[j][columns.indexOf(fid)]?.value);vals[mid][id]=typed(n);if(format==='percent'&&n!==null&&n>1)crowdWarnings.push(p.label+' '+name+' '+cd.find(m=>m[0]===mid)[1]+'返回'+(n*100).toFixed(2)+'%，口径待核对。');}}if(pager?.total!==undefined&&count!==pager.total)throw Error('CROWD_TRUNCATED');}
+  return{...p,values:vals};
+ });
+ const knownCrowd=crowdPeriods.filter(p=>Object.values(p.values.people).some(v=>v.kind==='exact')).map(p=>p.label),crowdNote='有数值周期：'+(knownCrowd.join('、')||'无')+'。其他周期或未返回分类保留未知。'+crowdWarnings.join(' ');
+ const crowdVM={contract:'crowd-composition-dashboard@1.0',meta:{...common,title:'人群构成对比',source:'DMP人群数值分层 · 数据集175',dataNote:crowdNote,footnote:'人群数值分层与经营数据集156口径独立。日期为请求范围；跨日去重规则未明确。平台合计与分类分别核对。'},groups,metrics:cd.map(([id,label,,unit,format])=>({id,label,unit,format,comparison:format==='percent'?'percentage_points':'relative',chart:format==='percent'?'rate':'composition',definition:id==='cartFavorite'?'收加率＝收加量/展现量，独立于经营加购率。':id==='conversion'?'平台支付转化率原值；比例大于100%时保留并标记待核对，不能解释为去重购买概率。':label+'采用人群表原值；不将不同周期人群数相加解释为去重人数。'})),periods:crowdPeriods};
+ const cur=metricsByPeriod.near7,prev=metricsByPeriod.prior7,month=metricsByPeriod.near30,lastMonth=metricsByPeriod.prior30,weekly=plan.periods.slice(4).filter(p=>metricsByPeriod[p.id].sales!==null),peak=weekly.length?weekly.reduce((a,b)=>metricsByPeriod[a.id].sales>metricsByPeriod[b.id].sales?a:b):null;
+ const analyses={metrics:[{title:'规模变化',text:'近7天销售额'+vtext(cur.sales)+'元，前7天'+vtext(prev.sales)+'元，环比'+percent(growth(cur.sales,prev.sales))+'。近30天销售额'+vtext(month.sales)+'元，前30天'+vtext(lastMonth.sales)+'元，环比'+percent(growth(month.sales,lastMonth.sales))+'。'},{title:'量价与效率',text:'近7天成交'+vtext(cur.orders)+'笔，笔单价'+vtext(cur.averageOrder)+'元；前7天分别为'+vtext(prev.orders)+'笔、'+vtext(prev.averageOrder)+'元。销售变化应结合成交规模与笔单价共同观察，不能仅据变化归因为投放。'},{title:'周度观察',text:peak?'8个完整自然周中，已返回销售额最高的是'+peak.start+'至'+peak.end+'，为'+vtext(metricsByPeriod[peak.id].sales)+'元。周度汇总用于观察波动，节假日、活动或投放调整仍需额外证据。':'自然周数据不足，暂不判断周趋势。'}],promotion:[],crowd:[]};
+ for(const g of scenes){const q=promoPeriods[0].values,known=promo.some(([id])=>q[id][g.id].kind!=='missing');if(known)analyses.promotion.push({title:g.label,text:'近7天展现'+display(q.impression[g.id])+'，点击'+display(q.click[g.id])+'，点击率'+display(q.ctr[g.id],true)+'，直接归因成交额'+display(q.directDealAmount[g.id])+'元。区间只表示平台上下界，相同或重叠区间无法确定精确涨跌幅。'});}
+ const missingCharge=promoPeriods.every(p=>scenes.every(s=>p.values.charge[s.id].kind==='missing')),keywordCount=promoPeriods.reduce((n,p)=>n+p.keywordCount,0);analyses.promotion.push({title:'采用边界',text:(missingCharge?'12个周期均未返回目标商品的精确消耗金额，不能计算精确花费变化。':'消耗金额仅按已返回周期解释。')+'目标关键词共返回'+keywordCount+'条记录，空列表不代表没有关键词推广。锚点侧数据未混入目标商品图表。'});
+ const nearCrowd=crowdPeriods[0],knownGroups=groups.filter(g=>nearCrowd.values.people[g.id].kind==='exact'),peopleSum=knownGroups.reduce((n,g)=>n+nearCrowd.values.people[g.id].value,0);
+ analyses.crowd.push({title:'分类构成',text:knownGroups.length?'近7天已返回分类之和为'+peopleSum+'，其中'+knownGroups.map(g=>g.label+' '+nearCrowd.values.people[g.id].value+'（'+(peopleSum?nearCrowd.values.people[g.id].value/peopleSum*100:0).toFixed(1)+'%）').join('、')+'。占比仅描述已返回分类，未返回分类不是0。':'近7天未返回人群分类数值，暂不判断构成。'},{title:'口径核对',text:'近30天人群分层成交合计'+display(crowdPeriods[2].values.orders.total)+'笔，经营汇总为'+vtext(month.orders)+'笔，分别保留各自口径。'+crowdNote},{title:'下一步',text:'先以已返回周期观察分类结构与效率；数据缺口补齐前，不将缺失解释为无经营活动。人群比例异常应核对平台计算口径后再用于预算决策。'});
+ const overview=[{title:'经营规模',tone:'info',segments:[{text:'近7天销售额 '+vtext(cur.sales)+' 元，环比 '+percent(growth(cur.sales,prev.sales)),emphasis:'strong'},{text:'；近30天环比 '+percent(growth(month.sales,lastMonth.sales))+'。结合量价与转化指标判断变化。'}]},{title:'推广观察',tone:'info',segments:[{text:'推广指标按原值与区间展示。',emphasis:'strong'},{text:missingCharge?'精确消耗金额缺失，暂不评价精确花费或成本变化。':'依据实际返回的金额覆盖解释成本。'}]},{title:'人群与数据质量',tone:'caution',segments:[{text:'人群数值覆盖 '+knownCrowd.length+'/12 个请求周期。',emphasis:'strong'},{text:'分类占比只使用已返回分类；人群与经营口径独立。'+(crowdWarnings.length?'存在待核对的比例原值。':'')}]}];
+ warnings.push(...crowdWarnings);return{reportVersion:1,itemId,anchorId,plan,sourceHash,coverage,warnings,overview,analyses,modules:{metrics:metricsVM,promotion:promotionVM,crowd:crowdVM}};
+}
+function display(v,isPercent=false){return v.kind==='missing'?'未返回':v.kind==='range'?v.raw:isPercent?(v.value*100).toFixed(2)+'%':vtext(v.value);}
+export function saveNew(file,data){if(fs.existsSync(file))throw Error('OUTPUT_EXISTS: '+file);fs.writeFileSync(file,typeof data==='string'?data:JSON.stringify(data,null,2),{flag:'wx',mode:0o600});}

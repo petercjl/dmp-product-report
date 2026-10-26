@@ -1,0 +1,34 @@
+import fs from 'node:fs';import path from 'node:path';import os from 'node:os';
+import {spawnSync,spawn} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+import {planPeriods,buildReport,saveNew} from './report-data.mjs';
+export const ROOT=fileURLToPath(new URL('../',import.meta.url));
+export function pythonRuntime(){const candidates=process.env.DMP_REPORT_PYTHON?[[process.env.DMP_REPORT_PYTHON,[]]]:process.platform==='win32'?[['py',['-3']],['python',[]],['python3',[]]]:[['python3',[]],['python',[]]];for(const[exe,prefix]of candidates){const r=spawnSync(exe,[...prefix,'-c','import sys;assert sys.version_info>=(3,10);print(sys.version.split()[0])'],{encoding:'utf8',timeout:5000});if(r.status===0)return{exe,prefix,version:r.stdout.trim()};}throw Error('PYTHON_3_10_REQUIRED');}
+export function doctor(){const py=pythonRuntime(),r=spawnSync('tbcli',['dmp','catalog','--json'],{encoding:'utf8',timeout:30000,env:{...process.env,TBCLI_UPDATE_CHECK:'0'}});let catalog;try{catalog=JSON.parse(r.stdout);}catch{}return{ok:r.status===0&&catalog?.commands?.includes('dmp snapshot'),node:process.version,python:py.version,tbcliSnapshot:catalog?.snapshot?.version??null,renderer:'bundled-stdlib',templates:['metrics','promotion','crowd'],runtimeDependencies:['Node.js >=20','Python >=3.10','tbcli with dmp snapshot','authenticated Chrome'],rendererExternalDependencies:[]};}
+function invoke(exe,args){return new Promise((resolve,reject)=>{const p=spawn(exe,args,{stdio:['ignore','pipe','pipe'],env:{...process.env,TBCLI_UPDATE_CHECK:'0'}});let stdout='',stderr='';p.stdout.on('data',b=>stdout+=b);p.stderr.on('data',b=>{stderr+=b;if(stderr.length>12000)stderr=stderr.slice(-12000);});p.on('error',reject);p.on('exit',code=>resolve({code,stdout,stderr}));});}
+export async function collect(opts){
+ const itemId=String(opts.itemId??'');if(!/^[1-9]\d+$/.test(itemId))throw Error('ITEM_ID_REQUIRED');let anchorId=opts.anchorId;
+ if(!anchorId){try{const c=JSON.parse(fs.readFileSync(path.join(os.homedir(),'.config','dmp-product-report','config.json')));anchorId=c.anchors?.[itemId];}catch{}}
+ if(!/^[1-9]\d+$/.test(String(anchorId??'')))throw Error('ANCHOR_SELECTION_REQUIRED: use tbcli dmp items and select an authorized owned anchor');
+ const info=doctor();if(!info.ok)throw Error('TBCLI_SNAPSHOT_CAPABILITY_REQUIRED');
+ const out=path.resolve(opts.outDir??'');if(!opts.outDir||fs.existsSync(out))throw Error('NEW_OUT_DIR_REQUIRED');fs.mkdirSync(out,{recursive:true});fs.mkdirSync(path.join(out,'evidence'));
+ const plan={...planPeriods(opts.asOf),itemId,anchorId:String(anchorId)};saveNew(path.join(out,'plan.json'),plan);
+ const operation={status:'collecting',itemId,anchorId:String(anchorId),completed:[],startedAt:new Date().toISOString()};
+ for(const p of plan.periods){const target=path.join(out,'evidence',p.id+'.json'),argv=['dmp','snapshot','--item-id',itemId,'--anchor-id',String(anchorId),'--start-date',p.start,'--end-date',p.end,'--out',target,'--json'];if(opts.cdpUrl)argv.push('--session-mode','cdp','--cdp-url',opts.cdpUrl);
+  const r=await invoke('tbcli',argv);if(r.code!==0&&r.code!==2){saveNew(path.join(out,'stopped.json'),{...operation,status:'stopped',failed:p.id,reason:'collection stopped; inspect saved snapshot',exitCode:r.code});throw Error('COLLECTION_STOPPED: '+p.id+' '+out);}
+  const s=JSON.parse(fs.readFileSync(target));if(s.status==='stopped')throw Error('COLLECTION_STOPPED');operation.completed.push(p.id);console.error(JSON.stringify({period:p.id,status:s.status,completed:operation.completed.length,total:12}));}
+ operation.status='collected';operation.finishedAt=new Date().toISOString();saveNew(path.join(out,'collection.json'),operation);return out;
+}
+export function build(opts){
+ const run=path.resolve(opts.runDir??'');if(!opts.runDir)throw Error('RUN_DIR_REQUIRED');const plan=JSON.parse(fs.readFileSync(path.join(run,'plan.json'))),snapshots=plan.periods.map(p=>JSON.parse(fs.readFileSync(path.join(run,'evidence',p.id+'.json')))),report=buildReport(plan,snapshots);
+ const artifactDir=fs.existsSync(path.join(run,'report.ViewModel.json'))?path.join(run,'builds',new Date().toISOString().replace(/[:.]/g,'-')+'-'+process.pid):run;const output=opts.out?path.resolve(opts.out):path.join(artifactDir,'商品经营报告-'+report.itemId+'.html');if(fs.existsSync(output))throw Error('OUTPUT_EXISTS');if(artifactDir!==run)fs.mkdirSync(artifactDir,{recursive:true});
+ saveNew(path.join(artifactDir,'report.ViewModel.json'),report);
+ for(const[name,vm]of Object.entries(report.modules))saveNew(path.join(artifactDir,name+'.ViewModel.json'),vm);
+ saveNew(path.join(artifactDir,'analysis.json'),{overview:report.overview,analyses:report.analyses,warnings:report.warnings});
+ const csv=rows=>'\ufeff'+rows.map(r=>r.map(x=>'"'+String(x??'未返回').replaceAll('"','""')+'"').join(',')).join('\n');
+ const metrics=report.modules.metrics;saveNew(path.join(artifactDir,'经营指标.csv'),csv([['周期','开始日期','结束日期',...metrics.metrics.map(m=>m.label)],...plan.periods.map(p=>{const ms=p.mode==='comparison'?metrics.metrics:metrics.trend.metrics;return[p.label,p.start,p.end,...ms.map(m=>m.values[p.id])];})]));
+ for(const name of ['promotion','crowd']){const vm=report.modules[name],groups=vm.scenes??[{id:'total',label:'平台合计'},...vm.groups];saveNew(path.join(artifactDir,name+'.csv'),csv([['周期','开始日期','结束日期','分组',...vm.metrics.map(m=>m.label)],...vm.periods.flatMap(p=>groups.map(g=>[p.label,p.start,p.end,g.label,...vm.metrics.map(m=>{const v=p.values[m.id][g.id];return v.kind==='missing'?null:v.kind==='range'?v.raw:m.format==='percent'?(v.value*100).toFixed(4)+'%':v.value;})]))]));}
+ const py=pythonRuntime(),renderer=path.join(ROOT,'skill','dmp-product-report','scripts','render.py'),r=spawnSync(py.exe,[...py.prefix,'-B',renderer,path.join(artifactDir,'report.ViewModel.json'),output],{encoding:'utf8',timeout:120000});if(r.status!==0)throw Error('RENDER_FAILED: '+r.stderr.slice(-1500));
+ const html=fs.readFileSync(output,'utf8'),checks={iframeModules:(html.match(/<iframe\b/g)??[]).length===3,noExternalDependencies:!/(?:src|href)=["']https?:\/\//.test(html),noPrivatePaths:!html.includes('/Users/'),noCredentialFields:!/(?:_tb_token_|csrfId|authorization|document\.cookie)/i.test(html),periods:plan.periods.length===12,noRendererDependency:!html.includes('commerce-ui'),hasOverview:report.overview.length>=2};
+ const ok=Object.values(checks).every(Boolean);saveNew(path.join(artifactDir,'validation.json'),{ok,checks,renderer:'bundled-python-stdlib',reportStatus:report.coverage.some(c=>Object.values(c.modules).some(s=>s==='unavailable'))?'partial':'complete',warnings:report.warnings,output});if(!ok)throw Error('REPORT_VALIDATION_FAILED');return{ok:true,stage:"draft",readyForDelivery:false,next:"author analyses using the Skill knowledge, then finalize",output,runDir:run,artifactDir,warnings:report.warnings.length,checks};
+}

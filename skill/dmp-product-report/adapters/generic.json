@@ -1,0 +1,27 @@
+{
+  "schema": "portable-skill-adapter",
+  "platform": "generic",
+  "mappings": [
+    {
+      "capability_id": "report.execute",
+      "status": "implemented",
+      "features": [
+        "argv-execution",
+        "json-results",
+        "read-files",
+        "create-new-files",
+        "python-stdlib",
+        "authenticated-tbcli-snapshot"
+      ],
+      "implementation": {
+        "type": "cli",
+        "command": "dmp-product-report",
+        "discovery": [
+          "version",
+          "doctor --json",
+          "capabilities --json"
+        ]
+      }
+    }
+  ]
+}

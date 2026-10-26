@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract",
+    "meta",
+    "groups",
+    "metrics",
+    "periods"
+  ],
+  "properties": {
+    "contract": {
+      "const": "crowd-composition-dashboard@1.0"
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "subject",
+        "source"
+      ],
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "subject": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "sourceHash": {
+          "type": "string"
+        },
+        "eyebrow": {
+          "type": "string"
+        },
+        "groupLabel": {
+          "type": "string"
+        },
+        "footnote": {
+          "type": "string"
+        },
+        "valueNote": {
+          "type": "string"
+        },
+        "dataNote": {
+          "type": "string"
+        },
+        "showKeywords": {
+          "type": "boolean"
+        }
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "label",
+          "unit",
+          "format",
+          "definition",
+          "chart"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$"
+          },
+          "label": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "format": {
+            "enum": [
+              "number",
+              "percent"
+            ]
+          },
+          "definition": {
+            "type": "string"
+          },
+          "comparison": {
+            "enum": [
+              "relative",
+              "percentage_points"
+            ]
+          },
+          "chart": {
+            "enum": [
+              "composition",
+              "rate"
+            ]
+          }
+        }
+      }
+    },
+    "periods": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 60,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "label",
+          "start",
+          "end",
+          "mode",
+          "values"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$"
+          },
+          "label": {
+            "type": "string"
+          },
+          "start": {
+            "type": "string",
+            "format": "date"
+          },
+          "end": {
+            "type": "string",
+            "format": "date"
+          },
+          "mode": {
+            "enum": [
+              "comparison",
+              "trend"
+            ]
+          },
+          "keywordCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "values": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/value"
+              }
+            }
+          }
+        }
+      }
+    },
+    "groups": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "label"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$"
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      },
+      "maxItems": 6
+    }
+  },
+  "$defs": {
+    "value": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "raw",
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "const": "exact"
+            },
+            "raw": {
+              "type": "number"
+            },
+            "value": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "raw",
+            "lower",
+            "upper"
+          ],
+          "properties": {
+            "kind": {
+              "const": "range"
+            },
+            "raw": {
+              "type": "string"
+            },
+            "lower": {
+              "type": "number",
+              "minimum": 0
+            },
+            "upper": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "raw"
+          ],
+          "properties": {
+            "kind": {
+              "const": "missing"
+            },
+            "raw": {
+              "type": "null"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

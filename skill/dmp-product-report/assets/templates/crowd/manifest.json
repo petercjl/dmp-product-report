@@ -1,0 +1,15 @@
+{
+  "pack_format": "commerce-ui-template-pack@1",
+  "id": "crowd-composition-dashboard",
+  "contract": "crowd-composition-dashboard@1.0",
+  "version": "0.1.2",
+  "title": "人群分类构成对比",
+  "description": "统一分类颜色的周期小饼图，以已返回分类为占比分母；比例指标采用分类柱图，缺失与平台合计独立核对。",
+  "files": {
+    "schema": "schema.json",
+    "template": "template.html",
+    "renderer": "renderer.py",
+    "validator": "validator.py",
+    "fixture": "fixture.json"
+  }
+}

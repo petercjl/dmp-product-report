@@ -1,0 +1,51 @@
+{
+  "schema": "portable-skill-capabilities",
+  "schema_version": "1.0.0",
+  "skill": "dmp-product-report",
+  "target_platforms": [
+    "generic",
+    "codex"
+  ],
+  "host_resolution": {
+    "fallback_adapter": "generic",
+    "directory": "explicit host-resolved destination"
+  },
+  "capabilities": [
+    {
+      "id": "report.execute",
+      "purpose": "Collect explicit DMP periods and render a standalone HTML using bundled templates",
+      "required": true,
+      "required_features": [
+        "argv-execution",
+        "json-results",
+        "read-files",
+        "create-new-files",
+        "python-stdlib",
+        "authenticated-tbcli-snapshot"
+      ],
+      "input_fields": [
+        "item_id",
+        "anchor_id",
+        "as_of",
+        "new_output_directory"
+      ],
+      "output_fields": [
+        "ok",
+        "artifacts",
+        "metadata",
+        "warnings"
+      ],
+      "side_effects": {
+        "external_mutation": false,
+        "may_cost_money": false,
+        "authorization": "Read current authorized DMP account; create local artifacts only."
+      },
+      "errors": [
+        "CAPABILITY_UNAVAILABLE",
+        "AUTH_REQUIRED",
+        "PROVIDER_FAILURE",
+        "OUTPUT_CONTRACT_FAILED"
+      ]
+    }
+  ]
+}

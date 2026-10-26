@@ -1,0 +1,15 @@
+{
+  "pack_format": "commerce-ui-template-pack@1",
+  "id": "scene-period-dashboard",
+  "contract": "scene-period-dashboard@1.0",
+  "version": "0.2.1",
+  "title": "分组指标周期对比与区间趋势",
+  "description": "按指标、分组和时间维度切换单图，支持精确值、区间上下界、缺失状态及精确值环比；可用于推广场景或人群分层。",
+  "files": {
+    "schema": "schema.json",
+    "template": "template.html",
+    "renderer": "renderer.py",
+    "validator": "validator.py",
+    "fixture": "fixture.json"
+  }
+}
