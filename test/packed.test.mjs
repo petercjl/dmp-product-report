@@ -15,6 +15,7 @@ test('packed runtime survives bootstrap removal and other host removal, then ren
   // On Windows invoke npm-cli.js through Node rather than a shell .cmd wrapper.
   const npmPrefix=process.platform==='win32'?[process.env.npm_execpath]:[];
   const pack=JSON.parse(invoke(npm,[...npmPrefix,'pack','--ignore-scripts','--json','--pack-destination',tmp],ROOT))[0];
+  assert.ok(pack.files.every(f=>!/\.before-|\.backup(?:\.|$)|__pycache__|\.pyc$/.test(f.path)), 'public artifact must omit development recovery files');
   const bootstrap=path.join(tmp,'bootstrap');
   invoke(npm,[...npmPrefix,'install','--prefix',bootstrap,path.join(tmp,pack.filename),'--ignore-scripts','--no-audit','--no-fund']);
   const entry=path.join(bootstrap,'node_modules/@petercjl/dmp-product-report/bin/dmp-product-report.mjs');

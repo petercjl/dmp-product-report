@@ -6,4 +6,5 @@ const vendor=JSON.parse(fs.readFileSync(path.join(root,'src/vendor-source.json')
 
 const manifest=JSON.parse(fs.readFileSync(path.join(root,"capabilities.json")));if(manifest.version!==pkg.version||manifest.package!==pkg.name)throw Error("PACKAGE_CONTRACT_VERSION_DRIFT");
 
+function cleanTree(dir){for(const e of fs.readdirSync(dir,{withFileTypes:true})){if(/\.before-|\.backup(?:\.|$)|\.pyc$/.test(e.name)||e.name==='__pycache__')throw Error('UNEXPECTED_DEVELOPMENT_BACKUP');if(e.isDirectory())cleanTree(path.join(dir,e.name));}}cleanTree(path.join(root,'skill'));
 console.log(JSON.stringify({ok:true,package:pkg.name,version:pkg.version}));
