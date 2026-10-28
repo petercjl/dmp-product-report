@@ -70,6 +70,11 @@ def render(data_path,output):
 
  counts={status:sum(m==status for c in d['coverage'] for m in c['modules'].values()) for status in ['returned','empty','unavailable']}
  coverage='<div class="coverage-table"><table><thead><tr><th>周期</th><th>查询日期</th><th>经营日期</th><th>推广场景</th><th>目标关键词</th><th>人群区间</th><th>人群数值</th></tr></thead><tbody>'
+ gaps=d.get('capabilityGaps',[])
+ if gaps:
+  labels={'scenes':'推广场景','keywords':'目标关键词','crowdRanges':'人群区间'}
+  gap_names='、'.join(labels.get(k,k) for k in dict.fromkeys(g['module'] for g in gaps))
+  overview='<aside role="status" style="padding:16px;border:1px solid #e8c574;background:#fff8e7;margin-bottom:20px"><strong>完整竞品分析尚未完成</strong><p>'+esc(gap_names)+'：独立取数路径尚未核实。所需模块保留，已取得数据按实际覆盖展示。</p></aside>'+overview
  names={'returned':'有返回','empty':'空结果','unavailable':'查询失败'}
  for c in d['coverage']:
   cells=[c['label'],c['start']+' 至 '+c['end'],'已核对' if c['metricsDateVerified'] else '未核实']+[names.get(c['modules'].get(k),'未执行') for k in ['scenes','keywords','crowdRanges','crowdTable']]
@@ -106,7 +111,7 @@ def render(data_path,output):
  if buyer:note+='；已售及评价数为页面口径，与DMP周期成交分别解释。'
  if product.get('status')=='unavailable':note='商品资料未返回；商品ID与经营数据分别保留。'
  product_html='<section class="product-card" aria-label="商品信息">'+gallery+'<div class="product-details"><h2 class="product-name">'+esc(product.get('title') or '商品名称未返回')+'</h2><div class="product-meta">商品 ID '+esc(d['itemId'])+' · '+esc(shop_name)+'</div>'+stats+'<div class="product-links">'+links+'</div><div class="product-note">'+esc(note)+'</div></div></section>'
- replacements={'__PRODUCT__':product_html,'__OVERVIEW__':overview,'__ITEM__':esc(d['itemId']),'__ASOF__':esc(d['plan']['asOf']),'__PERIOD__':esc(d['plan']['periods'][0]['end']),'__JUDGMENTS__':conclusions,'__PANELS__':panels,'__COVERAGE__':coverage,'__COUNT__':esc('共12个周期、60项来源查询：'+str(counts['returned'])+'项有返回，'+str(counts['empty'])+'项为空，'+str(counts['unavailable'])+'项查询失败。'),'__HASH__':esc(d['sourceHash'])}
+ replacements={'__PRODUCT__':product_html,'__OVERVIEW__':overview,'__ITEM__':esc(d['itemId']),'__ASOF__':esc(d['plan']['asOf']),'__PERIOD__':esc(d['plan']['periods'][0]['end']),'__JUDGMENTS__':conclusions,'__PANELS__':panels,'__COVERAGE__':coverage,'__COUNT__':esc('共12个周期、60项所需来源状态：'+str(counts['returned'])+'项有返回，'+str(counts['empty'])+'项为空，'+str(counts['unavailable'])+'项不可用（含能力缺口）。'),'__HASH__':esc(d['sourceHash'])}
  text=(ROOT/'assets/report.html').read_text(encoding='utf-8')
  for k,v in replacements.items():text=text.replace(k,v)
  if re.search(r'__[A-Z_]+__',text):raise ValueError('UNRESOLVED_TEMPLATE')

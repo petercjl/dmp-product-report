@@ -1,6 +1,6 @@
 {
   "package": "@petercjl/dmp-product-report",
-  "version": "0.1.2",
+  "version": "0.2.0-dev.0",
   "tool": "dmp-product-report",
   "entry": "bin/dmp-product-report.mjs",
   "commandContracts": {
@@ -352,13 +352,12 @@
           "type": "boolean"
         },
         "--item-id": {
-          "type": "string"
-        },
-        "--anchor-id": {
-          "type": "string"
+          "type": "string",
+          "required": true
         },
         "--out-dir": {
-          "type": "string"
+          "type": "string",
+          "required": true
         },
         "--as-of": {
           "type": "string"
@@ -372,7 +371,9 @@
         }
       },
       "sideEffects": "local-write",
-      "serviceAccess": "read"
+      "serviceAccess": "read",
+      "subjectMode": "target-only",
+      "completion": "required module capability gaps yield partial/blocked-capability, never complete analysis"
     },
     "collect": {
       "options": {
@@ -383,13 +384,12 @@
           "type": "boolean"
         },
         "--item-id": {
-          "type": "string"
-        },
-        "--anchor-id": {
-          "type": "string"
+          "type": "string",
+          "required": true
         },
         "--out-dir": {
-          "type": "string"
+          "type": "string",
+          "required": true
         },
         "--as-of": {
           "type": "string"
@@ -403,7 +403,9 @@
         }
       },
       "sideEffects": "local-write",
-      "serviceAccess": "read"
+      "serviceAccess": "read",
+      "subjectMode": "target-only",
+      "completion": "required module capability gaps yield partial/blocked-capability, never complete analysis"
     },
     "build": {
       "options": {

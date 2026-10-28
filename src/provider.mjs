@@ -10,7 +10,7 @@ export function inspectProvider(tool=provider()){
  const env={...process.env,TBCLI_UPDATE_CHECK:'0'};
  const read=args=>{const r=spawnSync(tool.exe,[...tool.prefix,...args],{encoding:'utf8',timeout:30000,env});let data;try{data=JSON.parse(r.stdout);}catch{}return r.status===0?data:null;};
  const catalog=read(['dmp','catalog','--json']),capabilities=read(['capabilities','--json']);
- return {ok:catalog?.snapshot?.version===1&&capabilities?.itemSummary?.version===1,snapshotVersion:catalog?.snapshot?.version??null,itemSummaryVersion:capabilities?.itemSummary?.version??null};
+ const snapshot=catalog?.snapshot;return {ok:snapshot?.version===2&&snapshot?.subjectMode==='target-only'&&capabilities?.itemSummary?.version===1,snapshotVersion:snapshot?.version??null,subjectMode:snapshot?.subjectMode??null,independentRoutes:snapshot?.independentRoutes??{},fullAnalysisAvailable:['metrics7','scenes','keywords','crowdRanges','crowdTable'].every(k=>snapshot?.independentRoutes?.[k]==='verified-saved-request'),itemSummaryVersion:capabilities?.itemSummary?.version??null};
 }
 export function configure(opts){
  const entry=path.resolve(opts.tbcliEntry??'');if(!opts.tbcliEntry||!fs.statSync(entry).isFile()||!entry.endsWith('.mjs'))throw Error('TBCLI_ENTRY_REQUIRED');
