@@ -1,6 +1,6 @@
 {
   "name": "@petercjl/dmp-product-report",
-  "version": "0.2.0-dev.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "应用层DMP商品经营、推广和人群分析报告，内置独立HTML模板",
   "bin": {
