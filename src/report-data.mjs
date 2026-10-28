@@ -37,8 +37,8 @@ export function buildReport(plan,snapshots){
   coverage.push({id:p.id,label:p.label,start:p.start,end:p.end,metricsDateVerified:matched,modules:moduleStates});
   if(!matched)warnings.push(p.label+'经营汇总日期未核实，图表保留未知。');
  }
- const capabilityGaps=coverage.flatMap((c,i)=>Object.entries(snapshots[i].modules).filter(([,m])=>m.reason==='capability-unverified').map(([module,m])=>({period:c.id,module,code:m.error?.code??'DMP_INDEPENDENT_ROUTE_UNVERIFIED'})));
- for(const module of [...new Set(capabilityGaps.map(g=>g.module))])warnings.push(module+'：目标商品独立取数路径尚未核实，完整竞品分析存在能力缺口。');
+ const capabilityGaps=coverage.flatMap((c,i)=>Object.entries(snapshots[i].modules).filter(([,m])=>['capability-unverified','context-unavailable'].includes(m.reason)).map(([module,m])=>({period:c.id,module,code:m.error?.code??'DMP_INDEPENDENT_ROUTE_UNVERIFIED'})));
+ for(const module of [...new Set(capabilityGaps.map(g=>g.module))])warnings.push(module+'：取数所需上下文或能力不可用，已有目标商品数据保留。');
  const common={subject:'商品 ID '+itemId,sourceHash},operatingMetrics=[['sales','销售额',null,'元','decimal'],...md].map(([id,label,,unit,format])=>({id,label,unit,format,comparison:format==='percent'?'percentage_points':'relative',definition:id==='sales'?'销售额＝该周期完整精度笔单价 × 成交笔数，显示两位小数。':id==='ipv'?'所有渠道商品详情页访问次数。':id==='addToCart'?'平台加购率原值；与人群表收加率分别解释。':label+'：按该周期平台汇总值展示。',values:Object.fromEntries(plan.periods.filter(p=>p.mode==='comparison').map(p=>[p.id,metricsByPeriod[p.id][id]]))}));
  const mapPeriod=p=>({id:p.id,label:p.label,start:p.start,end:p.end,days:Math.round((Date.parse(p.end)-Date.parse(p.start))/864e5)+1});
  const metricsVM={contract:'period-metric-dashboard@1.0',mode:'combined',meta:{...common,title:'关键指标对比',asOf:plan.periods[0].end,periodNoun:'周',source:'DMP经营数据集156 · 四周期与8个完整自然周'},periods:plan.periods.slice(0,4).map(mapPeriod),comparisons:[{label:'7天',current:'near7',previous:'prior7'},{label:'30天',current:'near30',previous:'prior30'}],metrics:operatingMetrics,trend:{periods:plan.periods.slice(4).map(mapPeriod),metrics:operatingMetrics.map(m=>({...m,values:Object.fromEntries(plan.periods.slice(4).map(p=>[p.id,metricsByPeriod[p.id][m.id]]))}))}};

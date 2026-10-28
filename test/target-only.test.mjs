@@ -4,7 +4,7 @@ import {buildReport} from '../src/report-data.mjs';import {finalize} from '../sr
 import {inspectProvider} from '../src/provider.mjs';import {spawnSync} from 'node:child_process';
 function evidence(){const f=fixture();for(const s of f.snapshots){s.snapshotVersion=2;s.subject={mode:'target-only',itemId:s.itemId};delete s.anchorId;for(const m of ['scenes','keywords','crowdRanges'])s.modules[m]={status:'unavailable',reason:'capability-unverified',error:{code:'DMP_INDEPENDENT_ROUTE_UNVERIFIED'},request:null,response:null};}return f;}
 test('v2 keeps all report modules and horizons, exposes capability gaps, preserves verified values',()=>{
- const {plan,snapshots}=evidence(),r=buildReport(plan,snapshots);assert.equal(r.capabilityGaps.length,36);assert.deepEqual(Object.keys(r.modules),['metrics','promotion','crowd']);assert.equal(r.modules.metrics.metrics[0].values.near7,5*11.111);assert.equal(r.modules.promotion.periods.length,12);assert.equal(r.modules.crowd.periods.length,12);assert.ok(!JSON.stringify(r).includes('anchorId'));assert.ok(r.warnings.some(x=>x.includes('独立取数')));
+ const {plan,snapshots}=evidence(),r=buildReport(plan,snapshots);assert.equal(r.capabilityGaps.length,36);assert.deepEqual(Object.keys(r.modules),['metrics','promotion','crowd']);assert.equal(r.modules.metrics.metrics[0].values.near7,5*11.111);assert.equal(r.modules.promotion.periods.length,12);assert.equal(r.modules.crowd.periods.length,12);assert.ok(!JSON.stringify(r).includes('anchorId'));assert.ok(r.warnings.some(x=>x.includes('上下文')));
  snapshots[0].subject.itemId='999';assert.throws(()=>buildReport(plan,snapshots),/MISMATCH/);
 });
 test('missing v2 module is a schema failure, never a complete report',()=>{const {plan,snapshots}=evidence();delete snapshots[0].modules.keywords;assert.throws(()=>buildReport(plan,snapshots),/MODULES_INCOMPLETE/);});
@@ -20,3 +20,5 @@ test('old provider is rejected before collection; parser refuses removed CLI arg
 
  const result=spawnSync(process.execPath,['bin/dmp-product-report.mjs','run','--item-id','123','--anchor-id','456','--out-dir','unused'],{cwd:new URL('../',import.meta.url),encoding:'utf8'});assert.equal(result.status,1);assert.ok(result.stderr.includes('INVALID_ARGUMENT'));
 });
+
+test('internal execution context and owned values never become the report subject or target values',()=>{const {plan,snapshots}=fixture();for(const s of snapshots){s.executionContext={itemId:'456',selection:'automatic-owned-item'};s.modules.scenes={status:'returned',response:{body:{info:{ok:true},data:[{sceneId:435,sceneName:'货品全站推',click:{succItemValue:12,itemValue:999},charge:{succItemValue:null,itemValue:888}}]}}};}const r=buildReport(plan,snapshots);assert.equal(r.itemId,'123');assert.equal(r.modules.promotion.periods[0].values.click.s435.value,12);assert.equal(r.modules.promotion.periods[0].values.charge.s435.kind,'missing');assert.equal('executionContext' in r,false);});

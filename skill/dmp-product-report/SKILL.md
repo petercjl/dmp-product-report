@@ -23,7 +23,7 @@ description: 输入淘宝或天猫商品ID，获取达摩盘经营、推广和�
 
 1. **确认输入。** 保持用户指定的唯一目标商品、查询日和授权上下文，选择新的输出目录。
 2. **确定周期。** 在周期决策节点进入 `references/queries/periods.md`，读取其方法并返回本步骤。以报告日前一天为日数据截止日，取近7天/前7天、近30天/前30天，及最近8个已经结束的周一至周日。
-3. **检查并采集。** `dmp-product-report doctor --json` 通过后，执行 `dmp-product-report run --item-id ID --as-of YYYY-MM-DD --out-dir NEW_DIR --json`。缺省报告日为上海当天。每个角色的会话参数在本次全流程分别保持一致；已有可调试电商浏览器时，将其地址通过 `--cdp-url URL` 传入。`run` 产物标记为draft，必须继续完成下述分析和finalize节点。也可先 `collect` 再 `build --run-dir DIR`，用于分步检查。先调用 `tbcli item summary`，由淘宝买家浏览器获取目标商品资料；前五张主图从返回的公共图片链接下载并嵌入HTML。商品概要与DMP使用独立浏览器：`--cdp-url` 仅指定商家会话，`--buyer-cdp-url` 可选指定买家会话，默认由tbcli按角色解析；再每周期独立调用tbcli快照，保留经营、推广场景、目标关键词、人群区间和人群数值5类来源及业务状态。当前已保存请求仅核实经营与人群数值的独立路径；其他独立路径尚未核实时，能力层逐模块返回 `DMP_INDEPENDENT_ROUTE_UNVERIFIED`，应用保留缺口与已有证据。完整分析所需模块始终保留，能力缺口使完整交付状态为blocked-capability，不以仅经营结果替代完整任务。登录、验证码、访问限制立即停止；部分业务失败保留已有结果。
+3. **检查并采集。** `dmp-product-report doctor --json` 通过后，执行 `dmp-product-report run --item-id ID --as-of YYYY-MM-DD --out-dir NEW_DIR --json`。缺省报告日为上海当天。每个角色的会话参数在本次全流程分别保持一致；已有可调试电商浏览器时，将其地址通过 `--cdp-url URL` 传入。`run` 产物标记为draft，必须继续完成下述分析和finalize节点。也可先 `collect` 再 `build --run-dir DIR`，用于分步检查。先调用 `tbcli item summary`，由淘宝买家浏览器获取目标商品资料；前五张主图从返回的公共图片链接下载并嵌入HTML。商品概要与DMP使用独立浏览器：`--cdp-url` 仅指定商家会话，`--buyer-cdp-url` 可选指定买家会话，默认由tbcli按角色解析；再每周期独立调用tbcli快照，保留经营、推广场景、目标关键词、人群区间和人群数值5类来源及业务状态。推广、关键词和人群区间接口所需的本店商品参数由tbcli自动从当前已登录店铺商品列表选取；它仅用于完成接口调用，报告只采用目标商品侧数据。用户只需提供目标商品，取数准备在能力层完成。若当前账户没有可用商品，记录DMP_OWNED_CONTEXT_UNAVAILABLE及已有数据，完整结果保持未完成。登录、验证码、访问限制立即停止；部分业务失败保留已有结果。
 4. **核对并分析。** 进入 `references/queries/analysis.md`，核对日期、字段ID、空值、区间、合计、目标侧数据和来源口径，再返回本步骤。关键指标在本节点进入 `references/queries/metrics-analysis.md`，以8个指标为出发点，各自合看7天、30天与8个自然周，输出一句结论及编号短段证据，完成后返回本步骤。脚本生成的事实分析是基础，按知识方法补充后保存为新的分析文件／ViewModel，再进入渲染；知识更新不代表脚本已自动实现全部分析。推广在本节点进入 `references/queries/promotion-analysis.md`，按场景和指标合看三个尺度，保留区间/缺失，完成后返回本步骤。人群在本节点进入 `references/queries/crowd-analysis.md`，逐指标合看三个尺度，核对分类分母、合计和缺失，完成后返回本步骤。原因假设与确定事实分开。三个模块事实分析完成后进入 `references/queries/business-interpretation.md`，分别形成经营走势/策略线索、推广方式/力度/效果、新老客成交依赖与链接/店铺线索；再汇总概览，完成后返回本步骤。仅解读竞品，不给优化动作。
 5. **独立渲染。** 将分析另存为新JSON，包含 `metricAnalyses`（8指标）、`promotionAnalyses`（每个返回场景8指标）、`crowdAnalyses`（4指标）、`businessInterpretations`（metrics/promotion/crowd）及 `businessOverview`。字段格式见 [正式报告输入合同](references/finalization.md)。执行 `dmp-product-report finalize --viewmodel DRAFT.json --analysis ANALYSIS.json --out NEW.html --json`，通过校验后输出正式报告与新ViewModel。底层随包 `scripts/render.py` 使用Python标准库和 `assets/` 模板。若需要调整分析，在首次渲染前修改分析输入或创建新的ViewModel与HTML，不覆盖已有交付。按概览、关键指标、推广策略、人群构成组织报告：模块先展示一句经营解读与编号证据，图表和逐项依据默认展开，用户可手动收起；概览最后综合三个模块，不新增未经支持的推断。
 6. **验证交付。** 检查正式报告对应的 `.validation.json` 中 `readyForDelivery=true`。若 `completion=blocked-capability`，交付已保存的草稿和具体缺口，明确完整分析未完成；所需模块仍在报告中。核对输出文件和12组证据是否齐全；使用当前Agent可用浏览器查看桌面与手机宽度、全部模块/指标/周期切换。缺失状态保持可见。交付HTML与数据目录，并报告缺口和异常原值。
@@ -50,7 +50,7 @@ description: 输入淘宝或天猫商品ID，获取达摩盘经营、推广和�
 ## 分支与恢复
 
 - `AUTH_REQUIRED` / 验证或限制：保存停止证据，由用户在同一浏览器完成处理；返回采集节点，使用新输出目录，只在明确恢复需求下重查。
-- `DMP_INDEPENDENT_ROUTE_UNVERIFIED`：保留模块名称、来源证据和能力缺口；新查询合同的维护属于tbcli。终止“完整完成”声明，已有数据仍可核对。
+- `DMP_OWNED_CONTEXT_UNAVAILABLE`：当前商家列表未返回有效接口上下文；保留失败证据和已有模块，说明账户取数前提未满足。由tbcli在后续恢复时重新发现，不让用户选择商品或填写内部参数。
 - 空结果、查询失败：分别记录；独立来源继续处理，不补0，不移动日期来制造完整性。报告可部分成功，交付时说明。
 - 日期回显不匹配：保留原始响应，经营图表标记未知。未回显日期不能声称实际覆盖已核实。
 - 来源口径冲突、比例超过100%：保留原值并提示待核对；人群175与经营156分别解释。

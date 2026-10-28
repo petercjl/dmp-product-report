@@ -74,7 +74,7 @@ def render(data_path,output):
  if gaps:
   labels={'scenes':'推广场景','keywords':'目标关键词','crowdRanges':'人群区间'}
   gap_names='、'.join(labels.get(k,k) for k in dict.fromkeys(g['module'] for g in gaps))
-  overview='<aside role="status" style="padding:16px;border:1px solid #e8c574;background:#fff8e7;margin-bottom:20px"><strong>完整竞品分析尚未完成</strong><p>'+esc(gap_names)+'：独立取数路径尚未核实。所需模块保留，已取得数据按实际覆盖展示。</p></aside>'+overview
+  overview='<aside role="status" style="padding:16px;border:1px solid #e8c574;background:#fff8e7;margin-bottom:20px"><strong>完整竞品分析尚未完成</strong><p>'+esc(gap_names)+'：取数所需上下文或能力不可用。所需模块保留，已取得数据按实际覆盖展示。</p></aside>'+overview
  names={'returned':'有返回','empty':'空结果','unavailable':'查询失败'}
  for c in d['coverage']:
   cells=[c['label'],c['start']+' 至 '+c['end'],'已核对' if c['metricsDateVerified'] else '未核实']+[names.get(c['modules'].get(k),'未执行') for k in ['scenes','keywords','crowdRanges','crowdTable']]
