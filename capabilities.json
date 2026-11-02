@@ -1,6 +1,6 @@
 {
   "package": "@petercjl/dmp-product-report",
-  "version": "0.3.0",
+  "version": "0.3.1-dev.1",
   "tool": "dmp-product-report",
   "entry": "bin/dmp-product-report.mjs",
   "commandContracts": {
@@ -442,7 +442,25 @@
           "type": "string"
         }
       },
-      "sideEffects": "local-write"
+      "sideEffects": "local-write",
+      "validation": {
+        "contract": "script-delivery@1",
+        "method": "deterministic-scripts",
+        "browserRequired": false,
+        "checks": [
+          "target-and-periods",
+          "fields-and-typed-values",
+          "sales-and-roi",
+          "analysis-coverage",
+          "nested-offline-assets",
+          "embedded-data-equality",
+          "inline-script-syntax"
+        ],
+        "limits": [
+          "Natural-language evidence and strategy judgments follow bundled knowledge methods.",
+          "Static checks do not certify browser layout or runtime interactions."
+        ]
+      }
     },
     "doctor": {
       "options": {

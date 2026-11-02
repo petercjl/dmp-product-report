@@ -1,3 +1,4 @@
+import {validateReportData} from './delivery-validation.mjs';
 import {buildAudienceProfile,audienceTypes} from './audience-profile.mjs';
 import {createHash} from 'node:crypto';
 import fs from 'node:fs';import path from 'node:path';
@@ -56,6 +57,7 @@ export function build(opts){
   report.sourceHash=createHash('sha256').update(JSON.stringify({base:report.sourceHash,audienceReports:reports})).digest('hex');
   if(report.audienceProfile.status!=='complete'){report.dataStatus='partial';report.warnings.push('竞品行为画像尚未全部取得。');}
  }
+ const contract=validateReportData(report);if(!contract.complete)report.dataStatus='partial';
  const artifactDir=fs.existsSync(path.join(run,'report.ViewModel.json'))?path.join(run,'builds',new Date().toISOString().replace(/[:.]/g,'-')+'-'+process.pid):run;const output=opts.out?path.resolve(opts.out):path.join(artifactDir,'商品经营报告-'+report.itemId+'.html');if(fs.existsSync(output))throw Error('OUTPUT_EXISTS');if(artifactDir!==run)fs.mkdirSync(artifactDir,{recursive:true});
  saveNew(path.join(artifactDir,'report.ViewModel.json'),report);
  for(const[name,vm]of Object.entries(report.modules))saveNew(path.join(artifactDir,name+'.ViewModel.json'),vm);
