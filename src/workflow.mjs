@@ -1,3 +1,4 @@
+import {writeAnalysisInputs} from './analysis-input.mjs';
 import {validateReportData} from './delivery-validation.mjs';
 import {buildAudienceProfile,audienceTypes} from './audience-profile.mjs';
 import {createHash} from 'node:crypto';
@@ -60,6 +61,7 @@ export function build(opts){
  const contract=validateReportData(report);if(!contract.complete)report.dataStatus='partial';
  const artifactDir=fs.existsSync(path.join(run,'report.ViewModel.json'))?path.join(run,'builds',new Date().toISOString().replace(/[:.]/g,'-')+'-'+process.pid):run;const output=opts.out?path.resolve(opts.out):path.join(artifactDir,'商品经营报告-'+report.itemId+'.html');if(fs.existsSync(output))throw Error('OUTPUT_EXISTS');if(artifactDir!==run)fs.mkdirSync(artifactDir,{recursive:true});
  saveNew(path.join(artifactDir,'report.ViewModel.json'),report);
+ const analysisInputs=writeAnalysisInputs(report,artifactDir);
  for(const[name,vm]of Object.entries(report.modules))saveNew(path.join(artifactDir,name+'.ViewModel.json'),vm);
  saveNew(path.join(artifactDir,'analysis.json'),{overview:report.overview,analyses:report.analyses,warnings:report.warnings});
  const csv=rows=>'\ufeff'+rows.map(r=>r.map(x=>'"'+String(x??'未返回').replaceAll('"','""')+'"').join(',')).join('\n');
@@ -69,5 +71,5 @@ export function build(opts){
  for(const name of ['promotion','crowd']){const vm=report.modules[name],groups=vm.scenes??[{id:'total',label:'平台合计'},...vm.groups];saveNew(path.join(artifactDir,name+'.csv'),csv([['周期','开始日期','结束日期','分组',...vm.metrics.map(m=>m.label)],...vm.periods.flatMap(p=>groups.map(g=>[p.label,p.start,p.end,g.label,...vm.metrics.map(m=>{const v=p.values[m.id][g.id];return v.kind==='missing'?null:v.kind==='range'?v.raw:m.format==='percent'?(v.value*100).toFixed(4)+'%':v.value;})]))]));}
  const py=pythonRuntime(),renderer=path.join(ROOT,'skill','dmp-product-report','scripts','render.py'),r=spawnSync(py.exe,[...py.prefix,'-B',renderer,path.join(artifactDir,'report.ViewModel.json'),output],{encoding:'utf8',timeout:120000});if(r.status!==0)throw Error('RENDER_FAILED: '+r.stderr.slice(-1500));
  const html=fs.readFileSync(output,'utf8'),checks={iframeModules:(html.match(/<iframe\b/g)??[]).length===3,noExternalDependencies:!/<(?:script|img|iframe)\b[^>]*src=["']https?:\/\//i.test(html)&&!/<link\b[^>]*href=["']https?:\/\//i.test(html),noPrivatePaths:!html.includes('/Users/'),noCredentialFields:!/(?:_tb_token_|csrfId|authorization|document\.cookie)/i.test(html),periods:plan.periods.length===12,noRendererDependency:!html.includes('commerce-ui'),hasOverview:report.overview.length>=2};
- const ok=Object.values(checks).every(Boolean);saveNew(path.join(artifactDir,'validation.json'),{ok,checks,renderer:'bundled-python-stdlib',reportStatus:report.dataStatus,warnings:report.warnings,output});if(!ok)throw Error('REPORT_VALIDATION_FAILED');return{ok:report.dataStatus==='complete',status:report.dataStatus==='complete'?"draft":"partial",stage:"draft",readyForDelivery:false,next:"author analyses using the Skill knowledge, then finalize",output,runDir:run,artifactDir,warnings:report.warnings.length,capabilityGaps:report.capabilityGaps,checks};
+ const ok=Object.values(checks).every(Boolean);saveNew(path.join(artifactDir,'validation.json'),{ok,checks,renderer:'bundled-python-stdlib',reportStatus:report.dataStatus,warnings:report.warnings,output});if(!ok)throw Error('REPORT_VALIDATION_FAILED');return{ok:report.dataStatus==='complete',status:report.dataStatus==='complete'?"draft":"partial",stage:"draft",readyForDelivery:false,analysisInputs,next:"Read analysis-input.md and Skill strategy; consult JSON only for precision or source detail. Fill analysis.template.json into a new analysis file, then finalize once. No preview or template regression required.",output,runDir:run,artifactDir,warnings:report.warnings.length,capabilityGaps:report.capabilityGaps,checks};
 }

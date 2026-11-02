@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 import {doctor,collect,build,ROOT} from '../src/workflow.mjs';
 import {configure} from '../src/provider.mjs';
+import {analysisInputCommand} from '../src/analysis-input.mjs';
+import {checkAnalysis} from '../src/analysis-validation.mjs';
+import {inspectReportData} from '../src/delivery-validation.mjs';
 import {finalize} from '../src/finalize.mjs';
 import {runMaintenance,autoDetect,maintenanceManifest} from '../src/package-runtime.mjs';
 import fs from 'node:fs';import path from 'node:path';
@@ -10,14 +13,16 @@ try{
  if(command==='version'||command==='--version'){console.log(argv.includes('--json')?JSON.stringify({ok:true,package:pkg.name,version:pkg.version}):pkg.version);}
  else if(['skill','update','operation'].includes(command)){await runMaintenance(config,command,argv);}
  else if(command==='capabilities'){console.log(JSON.stringify(maintenanceManifest(config)));}
- else if(command==='help'||command==='--help'||argv.includes('--help')){if(argv.includes('--json')){console.log(JSON.stringify(maintenanceManifest(config)));}else console.log('dmp-product-report run --item-id ID --out-dir NEW_DIR [--as-of YYYY-MM-DD] [--cdp-url MERCHANT_URL] [--buyer-cdp-url BUYER_URL]\ncollect: same inputs; build --run-dir DIR [--out NEW.html]\nfinalize --viewmodel DRAFT.json --analysis ANALYSIS.json --out NEW.html\nconfigure --tbcli-entry TOOL_ENTRY.mjs\ndoctor --json; version --json; capabilities --json\nskill source|status|install|update --target-dir PARENT --agent NAME --json\nupdate check|install --target-dir PARENT --agent NAME --json');}
+ else if(command==='help'||command==='--help'||argv.includes('--help')){if(argv.includes('--json')){console.log(JSON.stringify(maintenanceManifest(config)));}else console.log('dmp-product-report run --item-id ID --out-dir NEW_DIR [--as-of YYYY-MM-DD] [--cdp-url MERCHANT_URL] [--buyer-cdp-url BUYER_URL]\ncollect: same inputs; build --run-dir DIR [--out NEW.html]\nanalysis-input --viewmodel DRAFT.json --out-dir NEW_DIR\ncheck-analysis --viewmodel DRAFT.json --analysis ANALYSIS.json\nfinalize --viewmodel DRAFT.json --analysis ANALYSIS.json --out NEW.html\nconfigure --tbcli-entry TOOL_ENTRY.mjs\ndoctor --json; version --json; capabilities --json\nskill source|status|install|update --target-dir PARENT --agent NAME --json\nupdate check|install --target-dir PARENT --agent NAME --json');}
  else{
-  const options={};const allowed=new Set(command==='configure'?['tbcli-entry']:command==='finalize'?['viewmodel','analysis','out']:command==='build'?['run-dir','out']:command==='doctor'?[]:['item-id','out-dir','as-of','cdp-url','buyer-cdp-url']);for(let i=0;i<argv.length;i++){const arg=argv[i];if(arg==='--json')continue;if(!arg.startsWith('--')||!allowed.has(arg.slice(2))||argv[i+1]===undefined||argv[i+1].startsWith('--'))throw Error('INVALID_ARGUMENT: '+arg);const key=arg.slice(2).replace(/-([a-z])/g,(_,c)=>c.toUpperCase());if(Object.hasOwn(options,key))throw Error('DUPLICATE_ARGUMENT');options[key]=argv[++i];}
+  const options={};const allowed=new Set(command==='configure'?['tbcli-entry']:command==='analysis-input'?['viewmodel','out-dir']:command==='check-analysis'?['viewmodel','analysis']:command==='finalize'?['viewmodel','analysis','out']:command==='build'?['run-dir','out']:command==='doctor'?[]:['item-id','out-dir','as-of','cdp-url','buyer-cdp-url']);for(let i=0;i<argv.length;i++){const arg=argv[i];if(arg==='--json')continue;if(!arg.startsWith('--')||!allowed.has(arg.slice(2))||argv[i+1]===undefined||argv[i+1].startsWith('--'))throw Error('INVALID_ARGUMENT: '+arg);const key=arg.slice(2).replace(/-([a-z])/g,(_,c)=>c.toUpperCase());if(Object.hasOwn(options,key))throw Error('DUPLICATE_ARGUMENT');options[key]=argv[++i];}
   if(command==='configure'){console.log(JSON.stringify(configure(options)));}
   else if(command==='doctor'){const r=doctor();console.log(JSON.stringify(r,null,2));if(!r.ok)process.exitCode=1;}
   else if(command==='run'||command==='collect'){await autoDetect(config);const dir=await collect(options),state=JSON.parse(fs.readFileSync(path.join(dir,'collection.json')));const result=command==='run'?build({runDir:dir}):{ok:state.status==='collected',status:state.status,capabilityGaps:state.capabilityGaps,runDir:dir};console.log(JSON.stringify(result));if(state.status==='partial'||result.status==='partial')process.exitCode=2;}
+  else if(command==='analysis-input'){console.log(JSON.stringify(analysisInputCommand(options)));}
+  else if(command==='check-analysis'){const result=checkAnalysis(options,inspectReportData);console.log(JSON.stringify(result));if(!result.ok)process.exitCode=1;}
   else if(command==='finalize'){const result=finalize(options);console.log(JSON.stringify(result));if(!result.readyForDelivery)process.exitCode=2;}
   else if(command==='build'){const result=build(options);console.log(JSON.stringify(result));if(result.status==='partial')process.exitCode=2;}
   else throw Error('UNKNOWN_COMMAND');
  }
-}catch(e){console.error(JSON.stringify({ok:false,code:e.code??e.message.split(':')[0],message:e.message}));process.exitCode=1;}
+}catch(e){console.error(JSON.stringify({ok:false,code:e.code??e.message.split(':')[0],message:e.message,...(e.details??{})}));process.exitCode=1;}

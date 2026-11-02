@@ -8,6 +8,8 @@ import {validateReportData} from '../src/delivery-validation.mjs';
 import {finalize,validateArtifact} from '../src/finalize.mjs';
 import {fixture} from './report-data.test.mjs';
 import {costFixture} from './channel-costs.test.mjs';
+import {prepareAnalysisInput,analysisTemplate} from '../src/analysis-input.mjs';
+import {collectAnalysisIssues} from '../src/analysis-validation.mjs';
 
 function complete(){
  const {plan,snapshots}=fixture();
@@ -39,6 +41,11 @@ test('channel spend and estimated ROI are recomputed rather than trusted',()=>{
  for(const s of snapshots)s.modules.crowdRanges.status='empty';
  const r=buildReport(plan,snapshots,plan.periods.map(p=>costFixture(p)));
  assert.equal(validateReportData(r).complete,true);
+ const prepared=prepareAnalysisInput(r),scene=prepared.promotion.find(s=>s.id==='channel-wholeSite');
+ assert.deepEqual(scene.metrics.find(m=>m.id==='charge').sourcePrefixes,['channelCosts']);
+ assert.deepEqual(scene.metrics.find(m=>m.id==='estimatedDirectRoi').sourcePrefixes,['promotion','channelCosts']);
+ const a=analysisTemplate(r);a.promotionAnalyses['channel-wholeSite'].charge.sourceRefs=['promotion:near7'];
+ assert.ok(collectAnalysisIssues(r,a).issues.some(i=>i.code==='SOURCE_REFERENCE_SCOPE'&&i.expected==='channelCosts:'));
  for(const change of [
   x=>x.modules.promotion.channelCosts[0].totals.wholeSite++,
   x=>x.modules.promotion.channelCosts[0].daily[0].values.wholeSite++,
@@ -55,7 +62,7 @@ test('finalization completes from files and scripts only; partial reports never 
   assert.equal(result.readyForDelivery,true);assert.equal(result.acceptance.browserRequired,false);assert.equal(result.checks.inlineScriptSyntax,true);assert.equal(result.artifactHash.length,64);
   r.coverage[0].modules.scenes='unknown';fs.writeFileSync(model,JSON.stringify(r));
   const partial=finalize({viewmodel:model,analysis:a,out:path.join(dir,'partial.html')});
-  assert.equal(partial.readyForDelivery,false);assert.equal(partial.completion,'partial-data');
+  assert.equal(partial.readyForDelivery,false);assert.equal(partial.completion,'partial-data');assert.ok(fs.readFileSync(path.join(dir,'partial.html'),'utf8').includes('数据覆盖不完整'));
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 test('nested external assets, invalid JavaScript and mismatched embedded data fail artifact checks',()=>{

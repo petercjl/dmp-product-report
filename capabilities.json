@@ -1,6 +1,6 @@
 {
   "package": "@petercjl/dmp-product-report",
-  "version": "0.3.1",
+  "version": "0.3.2-dev.0",
   "tool": "dmp-product-report",
   "entry": "bin/dmp-product-report.mjs",
   "commandContracts": {
@@ -444,7 +444,7 @@
       },
       "sideEffects": "local-write",
       "validation": {
-        "contract": "script-delivery@1",
+        "contract": "script-delivery@2",
         "method": "deterministic-scripts",
         "browserRequired": false,
         "checks": [
@@ -454,7 +454,11 @@
           "analysis-coverage",
           "nested-offline-assets",
           "embedded-data-equality",
-          "inline-script-syntax"
+          "inline-script-syntax",
+          "all-input-issues",
+          "source-reference-ids-and-scope",
+          "component-reference-targets",
+          "coverage-content-equality"
         ],
         "limits": [
           "Natural-language evidence and strategy judgments follow bundled knowledge methods.",
@@ -486,6 +490,58 @@
         }
       },
       "sideEffects": "local-write"
+    },
+    "analysis-input": {
+      "options": {
+        "--viewmodel": {
+          "type": "string"
+        },
+        "--out-dir": {
+          "type": "string"
+        },
+        "--json": {
+          "type": "boolean"
+        },
+        "--help": {
+          "type": "boolean"
+        }
+      },
+      "sideEffects": "local-write",
+      "inputContract": "saved report ViewModel, new output directory",
+      "outputContract": {
+        "contract": "dmp-analysis-input@1",
+        "files": [
+          "analysis-input.md",
+          "analysis-input.json",
+          "analysis.template.json",
+          "analysis.schema.json"
+        ],
+        "analysisVersion": 2,
+        "collection": false
+      }
+    },
+    "check-analysis": {
+      "options": {
+        "--viewmodel": {
+          "type": "string"
+        },
+        "--analysis": {
+          "type": "string"
+        },
+        "--json": {
+          "type": "boolean"
+        },
+        "--help": {
+          "type": "boolean"
+        }
+      },
+      "sideEffects": "none",
+      "outputContract": {
+        "ok": "boolean",
+        "readyToRender": "boolean",
+        "repairCount": "integer",
+        "issues": "all independent repairable input issues with path and code/rule"
+      }
     }
   },
   "maintenanceContract": {
