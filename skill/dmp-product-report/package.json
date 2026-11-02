@@ -1,5 +1,5 @@
 {
   "name": "dmp-product-report-skill",
-  "version": "0.3.0-dev.2",
+  "version": "0.3.0",
   "ownerPackage": "@petercjl/dmp-product-report"
 }
