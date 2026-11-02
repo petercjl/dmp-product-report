@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {spawn} from 'node:child_process';import {fileURLToPath} from 'node:url';
+// Historical updater integration; partial-failure recovery and local-edits are covered by maintenance tests.
+test('actual published updater and managed-runtime handoff',{skip:process.env.DMP_REPORT_UPGRADE_QA!=='1',timeout:600000},async()=>{const r=await new Promise((resolve,reject)=>{const p=spawn(process.execPath,[fileURLToPath(new URL('../scripts/verify-published-upgrade.mjs',import.meta.url))],{env:process.env});let out='',err='';p.stdout.on('data',b=>out+=b);p.stderr.on('data',b=>err+=b);p.on('error',reject);p.on('close',code=>resolve({code,out,err}));});assert.equal(r.code,0,r.err||r.out);console.log(r.out);});

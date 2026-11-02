@@ -167,6 +167,77 @@
                 "$ref": "#/$defs/value"
               }
             }
+          },
+          "platformDirectRoi": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/$defs/value"
+            }
+          }
+        }
+      }
+    },
+    "channelCosts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "start",
+          "end",
+          "status",
+          "unit",
+          "totals",
+          "observedTotals",
+          "daily",
+          "coverage"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "start": {
+            "type": "string"
+          },
+          "end": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "returned",
+              "partial",
+              "unavailable"
+            ]
+          },
+          "unit": {
+            "const": "CNY"
+          },
+          "totals": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "observedTotals": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "daily": {
+            "type": "array"
+          },
+          "coverage": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "shares": {
+            "type": [
+              "object",
+              "null"
+            ]
           }
         }
       }

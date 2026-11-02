@@ -15,9 +15,9 @@ try{
   const options={};const allowed=new Set(command==='configure'?['tbcli-entry']:command==='finalize'?['viewmodel','analysis','out']:command==='build'?['run-dir','out']:command==='doctor'?[]:['item-id','out-dir','as-of','cdp-url','buyer-cdp-url']);for(let i=0;i<argv.length;i++){const arg=argv[i];if(arg==='--json')continue;if(!arg.startsWith('--')||!allowed.has(arg.slice(2))||argv[i+1]===undefined||argv[i+1].startsWith('--'))throw Error('INVALID_ARGUMENT: '+arg);const key=arg.slice(2).replace(/-([a-z])/g,(_,c)=>c.toUpperCase());if(Object.hasOwn(options,key))throw Error('DUPLICATE_ARGUMENT');options[key]=argv[++i];}
   if(command==='configure'){console.log(JSON.stringify(configure(options)));}
   else if(command==='doctor'){const r=doctor();console.log(JSON.stringify(r,null,2));if(!r.ok)process.exitCode=1;}
-  else if(command==='run'||command==='collect'){await autoDetect(config);const dir=await collect(options),state=JSON.parse(fs.readFileSync(path.join(dir,'collection.json')));const result=command==='run'?build({runDir:dir}):{ok:state.status==='collected',status:state.status,capabilityGaps:state.capabilityGaps,runDir:dir};console.log(JSON.stringify(result));if(state.status==='partial')process.exitCode=2;}
+  else if(command==='run'||command==='collect'){await autoDetect(config);const dir=await collect(options),state=JSON.parse(fs.readFileSync(path.join(dir,'collection.json')));const result=command==='run'?build({runDir:dir}):{ok:state.status==='collected',status:state.status,capabilityGaps:state.capabilityGaps,runDir:dir};console.log(JSON.stringify(result));if(state.status==='partial'||result.status==='partial')process.exitCode=2;}
   else if(command==='finalize'){const result=finalize(options);console.log(JSON.stringify(result));if(!result.readyForDelivery)process.exitCode=2;}
-  else if(command==='build'){console.log(JSON.stringify(build(options)));}
+  else if(command==='build'){const result=build(options);console.log(JSON.stringify(result));if(result.status==='partial')process.exitCode=2;}
   else throw Error('UNKNOWN_COMMAND');
  }
 }catch(e){console.error(JSON.stringify({ok:false,code:e.code??e.message.split(':')[0],message:e.message}));process.exitCode=1;}

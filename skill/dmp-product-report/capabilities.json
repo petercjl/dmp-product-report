@@ -21,7 +21,9 @@
         "read-files",
         "create-new-files",
         "python-stdlib",
-        "authenticated-tbcli-snapshot"
+        "authenticated-tbcli-snapshot",
+        "authenticated-tbcli-cny-costs",
+        "authenticated-tbcli-audience"
       ],
       "input_fields": [
         "item_id",

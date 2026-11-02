@@ -9,3 +9,5 @@
 Agent执行合同：先读取 `dmp-product-report skill source --json`，用显式 `--target-dir`（Skill父目录）或 `--skill-directory`（精确目录）调用包管理入口。具名或任意合法Agent名称使用generic能力适配，不代入其他宿主目录。安装为完整实体副本，包含自有.runtime；不创建共享链接。更新先检查本地修改与所有权，保留备份，再同步选定目标，同版本仍修复缺失/陈旧副本。`skill status`必须current且SHA-256验证通过；宿主刷新发现需由当前Agent实际验证。源码工作区通过Git流程维护。
 
 离线或更新失败保留现有安装；CLI成功而Skill失败时检查选定目标的operation状态与备份，不重复安装。自动检查只通知；安装更新须有明确授权。其他Agent的安装不在本次操作范围。
+
+报告运行依赖当前Agent可执行的tbcli，需同时具备target-only snapshot v2、CNY五渠道金额、item summary v1和audience v1合同。更新后检查doctor报告的实际tbcli版本、channelCostsAvailable及audienceProfileAvailable；显式配置过的旧入口需通过configure切换到当前Agent独立安装的兼容入口。只更新当前选定Agent，保留配置备份。

@@ -9,7 +9,7 @@ import {planPeriods,buildReport} from '../src/report-data.mjs';
 
 test('packed runtime survives bootstrap removal and other host removal, then renders an offline final report',{timeout:180000},()=>{
  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'dmp-packed-'));
- const invoke=(exe,args,cwd=tmp)=>{const r=spawnSync(exe,args,{cwd,encoding:'utf8',timeout:90000,env:{...process.env,AGENT_PACKAGE_UPDATE_CHECK:'0'}});assert.equal(r.status,0,r.stderr||r.stdout);return r.stdout;};
+ const invoke=(exe,args,cwd=tmp,expected=0)=>{const r=spawnSync(exe,args,{cwd,encoding:'utf8',timeout:90000,env:{...process.env,AGENT_PACKAGE_UPDATE_CHECK:'0'}});assert.equal(r.status,expected,r.stderr||r.stdout);return r.stdout;};
  try{
   const npm=process.platform==='win32'?process.execPath:'npm';
   // On Windows invoke npm-cli.js through Node rather than a shell .cmd wrapper.
@@ -33,8 +33,8 @@ test('packed runtime survives bootstrap removal and other host removal, then ren
   const briefs=ms=>Object.fromEntries(ms.map(m=>[m.id,a]));
   fs.writeFileSync(analysisPath,JSON.stringify({metricAnalyses:briefs(report.modules.metrics.metrics),promotionAnalyses:Object.fromEntries(report.modules.promotion.scenes.map(s=>[s.id,briefs(report.modules.promotion.metrics)])),crowdAnalyses:briefs(report.modules.crowd.metrics),businessInterpretations:{metrics:a,promotion:a,crowd:a},businessOverview:a}),{flag:'wx'});
   const output=path.join(tmp,'final.html');
-  const final=JSON.parse(invoke(process.execPath,[owned,'finalize','--viewmodel',draft,'--analysis',analysisPath,'--out',output,'--json']));
-  assert.equal(final.readyForDelivery,true);assert.ok(fs.statSync(output).size>10000);
+  const final=JSON.parse(invoke(process.execPath,[owned,'finalize','--viewmodel',draft,'--analysis',analysisPath,'--out',output,'--json'],tmp,2));
+  assert.equal(final.readyForDelivery,false);assert.equal(final.completion,'partial-data');assert.ok(fs.statSync(output).size>10000);
   assert.equal(final.checks.modulesDefaultOpen,true);
   const status=JSON.parse(invoke(process.execPath,[owned,'skill','status','--target-dir',hostB,'--agent','independent-b','--json']));
   assert.equal(status.current,true);assert.equal(status.verification.verified,true);

@@ -32,7 +32,7 @@ test('final HTML displays an offline product card outside the views with escaped
   const briefs=ms=>Object.fromEntries(ms.map(m=>[m.id,a]));
   const analysis={metricAnalyses:briefs(r.modules.metrics.metrics),crowdAnalyses:briefs(r.modules.crowd.metrics),promotionAnalyses:Object.fromEntries(r.modules.promotion.scenes.map(s=>[s.id,briefs(r.modules.promotion.metrics)])),businessInterpretations:{metrics:a,promotion:a,crowd:a},businessOverview:a};
   const vm=path.join(tmp,'vm.json'),ap=path.join(tmp,'analysis.json'),out=path.join(tmp,'report.html');fs.writeFileSync(vm,JSON.stringify(r));fs.writeFileSync(ap,JSON.stringify(analysis));
-  assert.equal(finalize({viewmodel:vm,analysis:ap,out}).readyForDelivery,true);
+  assert.equal(finalize({viewmodel:vm,analysis:ap,out}).readyForDelivery,false);
   const html=fs.readFileSync(out,'utf8');assert.ok(html.indexOf('class="product-card"')<html.indexOf('id="view-overview"'));
   assert.ok(html.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));assert.ok(!html.includes('<script>alert(1)</script>'));
   assert.ok(html.includes('href="https://shop456.taobao.com"'));assert.equal((html.match(/class="product-thumbnail"/g)??[]).length,5);assert.ok(html.includes('¥13.8起'));assert.ok(html.includes('已售 300+'));assert.ok(html.includes('用户评价数'));assert.ok(html.includes('淘宝买家浏览器'));assert.ok(html.includes('src="data:image/png;base64,'));

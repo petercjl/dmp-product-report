@@ -42,6 +42,12 @@ jobs:
           python-version: '3.12'
       - run: npm ci --ignore-scripts
       - run: npm test
+      - name: Published updater and recovery matrix
+        run: node --test test/published-upgrade.test.mjs
+        timeout-minutes: 12
+        env:
+          DMP_REPORT_UPGRADE_QA: '1'
+          AGENT_PACKAGE_UPDATE_CHECK: '0'
       - run: npm pack --dry-run
   publish:
     needs: qa

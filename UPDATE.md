@@ -11,3 +11,5 @@ Agent执行合同：先读取 `dmp-product-report skill source --json`，用显�
 离线或更新失败保留现有安装；CLI成功而Skill失败时检查选定目标的operation状态与备份，不重复安装。自动检查只通知；安装更新须有明确授权。其他Agent的安装不在本次操作范围。
 
 部分更新已保存候选包时，使用`update recover`对选定目标复用该候选包同步，不重新调用npm；修改与所有权保护仍生效。恢复成功后再刷新当前宿主发现。
+
+报告运行依赖当前Agent可执行的tbcli，需同时具备target-only snapshot v2、CNY五渠道金额、item summary v1和audience v1合同。更新后检查doctor报告的实际tbcli版本、channelCostsAvailable及audienceProfileAvailable；显式配置过的旧入口需通过configure切换到当前Agent独立安装的兼容入口。只更新当前选定Agent，保留配置备份。

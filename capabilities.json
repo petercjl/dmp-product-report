@@ -1,6 +1,6 @@
 {
   "package": "@petercjl/dmp-product-report",
-  "version": "0.2.0",
+  "version": "0.3.0-dev.2",
   "tool": "dmp-product-report",
   "entry": "bin/dmp-product-report.mjs",
   "commandContracts": {
@@ -576,7 +576,8 @@
     "dmp-product-report"
   ],
   "serviceDependencies": [
-    "tbcli dmp snapshot version 1",
+    "tbcli target-only snapshot version 2",
+    "tbcli CNY five-channel costs via dmp report",
     "tbcli item summary version 1",
     "Python >=3.10"
   ],
@@ -674,5 +675,40 @@
       "reviewCount"
     ],
     "merchantStatisticsCapability": "tbcli dmp snapshot"
+  },
+  "channelCosts": {
+    "version": 1,
+    "command": "tbcli dmp report --modules costs",
+    "unit": "CNY",
+    "channels": [
+      "keyword",
+      "wholeSite",
+      "audience",
+      "content",
+      "leads"
+    ],
+    "context": "reuse automatic snapshot execution context; target-only analysis",
+    "aggregation": "independent daily validation; complete totals only",
+    "legacy": "offline snapshot-only rebuilds preserve their original sources"
+  },
+  "audienceProfile": {
+    "version": 1,
+    "days": 30,
+    "types": [
+      "purchase",
+      "browse",
+      "favorite",
+      "cart",
+      "search"
+    ],
+    "dimensions": [
+      "gender",
+      "age",
+      "consumption",
+      "city",
+      "segments"
+    ],
+    "periodType": "rolling",
+    "dependency": "tbcli dmp audience v1"
   }
 }
